@@ -1,6 +1,5 @@
 package com.example.appconteo.ui.screens
 
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,22 +12,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -36,13 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -52,130 +36,50 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.R
+import com.example.appconteo.model.FormularioUiState
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.ui.components.BotonPrincipal
 import com.example.appconteo.ui.components.BotonSecundario
 import com.example.appconteo.ui.components.CampoContrasena
 import com.example.appconteo.ui.components.CampoTexto
 import com.example.appconteo.ui.components.CasillaConTexto
-
 import com.example.appconteo.ui.components.InterruptorConTexto
 import com.example.appconteo.ui.components.TarjetaSeccion
-import com.example.appconteo.ui.style.EstilosCampo
+import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
 import com.example.appconteo.ui.theme.Exito
 import com.example.appconteo.ui.theme.ExitoFondo
 import com.example.appconteo.viewmodel.RegistroViewModel
-import com.example.appconteo.model.FormularioUiState
-import com.example.appconteo.ui.theme.AppConteoTheme
-import kotlinx.coroutines.launch
 
 @Composable
-fun FormularioScreen(
+fun RegistroScreen(
     onRegistroExitoso: (Usuario) -> Unit,
-    usuarioActual: Usuario?,
-    onVerMiPerfil: () -> Unit,
-    onVerUsuarios: () -> Unit,
-    onCerrarSesion: () -> Unit,
+    onIrLogin: () -> Unit,
+    onVolver: () -> Unit,
     viewModel: RegistroViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-
-    var mostrarDialogo by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val textoSesionCerrada = stringResource(R.string.snackbar_sesion_cerrada)
-
-    if (mostrarDialogo) {
-        AlertDialog(
-            onDismissRequest = { mostrarDialogo = false },
-            title = { Text(stringResource(R.string.dialogo_titulo)) },
-            text = { Text(stringResource(R.string.dialogo_mensaje)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    mostrarDialogo = false
-                    onCerrarSesion()
-
-                    scope.launch { snackbarHostState.showSnackbar(textoSesionCerrada) }
-                }) { Text(stringResource(R.string.menu_cerrar_sesion)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { mostrarDialogo = false }) {
-                    Text(stringResource(R.string.dialogo_cancelar))
-                }
-            }
-        )
-    }
-
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                Text(
-                    text = if (usuarioActual != null) stringResource(R.string.saludo, usuarioActual.nombre)
-                    else stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(Dimens.espacioMedio)
-                )
-                HorizontalDivider()
-
-                if (usuarioActual != null) {
-                    NavigationDrawerItem(
-                        label = { Text(stringResource(R.string.menu_mi_perfil)) },
-                        selected = false,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            onVerMiPerfil()
-                        }
-                    )
-                }
-
-                NavigationDrawerItem(
-                    label = { Text(stringResource(R.string.menu_ver_usuarios)) },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        onVerUsuarios()
-                    }
-                )
-
-                if (usuarioActual != null) {
-                    NavigationDrawerItem(
-                        label = { Text(stringResource(R.string.menu_cerrar_sesion)) },
-                        selected = false,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            mostrarDialogo = true
-                        }
-                    )
-                }
-            }
-        }
-    ) {
-        FormularioContent(
-            uiState = uiState,
-            onNombreCambia = viewModel::onNombreCambia,
-            onCorreoCambia = viewModel::onCorreoCambia,
-            onContrasenaCambia = viewModel::onContrasenaCambia,
-            onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
-            onNoticiasCambia = viewModel::onNoticiasCambia,
-            onTerminosCambia = viewModel::onTerminosCambia,
-
-            onRegistrar = { viewModel.onRegistrar()?.let { usuario -> onRegistroExitoso(usuario) } },
-            onLimpiar = viewModel::onLimpiar,
-            usuarioActual = usuarioActual,
-            onAbrirMenu = { scope.launch { drawerState.open() } },
-            snackbarHostState = snackbarHostState
-        )
-    }
+    RegistroContent(
+        uiState = uiState,
+        onNombreCambia = viewModel::onNombreCambia,
+        onCorreoCambia = viewModel::onCorreoCambia,
+        onContrasenaCambia = viewModel::onContrasenaCambia,
+        onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
+        onNoticiasCambia = viewModel::onNoticiasCambia,
+        onTerminosCambia = viewModel::onTerminosCambia,
+        onRegistrar = { viewModel.onRegistrar()?.let { usuario -> onRegistroExitoso(usuario) } },
+        onLimpiar = viewModel::onLimpiar,
+        onIrLogin = onIrLogin,
+        onVolver = onVolver,
+        snackbarHostState = snackbarHostState
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FormularioContent(
+fun RegistroContent(
     uiState: FormularioUiState,
     onNombreCambia: (String) -> Unit,
     onCorreoCambia: (String) -> Unit,
@@ -185,26 +89,19 @@ fun FormularioContent(
     onTerminosCambia: (Boolean) -> Unit,
     onRegistrar: () -> Unit,
     onLimpiar: () -> Unit,
-    onCiudadSeleccionada: (String) -> Unit = {},
-    usuarioActual: Usuario? = null,
-    onAbrirMenu: () -> Unit = {},
+    onIrLogin: () -> Unit,
+    onVolver: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        if (usuarioActual != null) stringResource(R.string.saludo, usuarioActual.nombre)
-                        else stringResource(R.string.titulo_formulario)
-                    )
-                },
-
+                title = { Text(stringResource(R.string.titulo_formulario)) },
                 navigationIcon = {
-                    IconButton(onClick = onAbrirMenu) {
+                    IconButton(onClick = onVolver) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_menu),
-                            contentDescription = stringResource(R.string.cd_menu)
+                            painter = painterResource(R.drawable.ic_volver),
+                            contentDescription = stringResource(R.string.cd_volver)
                         )
                     }
                 },
@@ -218,14 +115,12 @@ fun FormularioContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-
             Column(
                 modifier = Modifier.padding(Dimens.espacioPantalla),
                 verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)
@@ -254,18 +149,9 @@ fun FormularioContent(
                         onAlternarVisible = onAlternarVisibilidad,
                         error = uiState.errorContrasena
                     )
-
-                    var expandido by remember { mutableStateOf(false) }
-
-
                 }
 
-                TarjetaSeccion(titulo = stringResource(R.string.seccion_preferencias)) {
-                    Text(
-                        text = stringResource(R.string.etiqueta_nivel),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
+                TarjetaSeccion(titulo = stringResource(R.string.seccion_notificaciones)) {
                     InterruptorConTexto(
                         texto = stringResource(R.string.opcion_noticias),
                         activado = uiState.recibirNoticias,
@@ -302,6 +188,21 @@ fun FormularioContent(
                         icono = R.drawable.ic_check,
                         modifier = Modifier.weight(1f)
                     )
+                }
+
+                // Enlace "¿Ya tienes cuenta?" ➔ Ir al login
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.ya_tienes_cuenta),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    TextButton(onClick = onIrLogin) {
+                        Text(stringResource(R.string.btn_iniciar_sesion))
+                    }
                 }
 
                 if (uiState.registroExitoso) {
@@ -341,22 +242,23 @@ private fun MensajeExito(nombre: String) {
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-private fun FormularioVacioPreview() {
-    AppConteoTheme() {
-        FormularioContent(
+private fun RegistroVacioPreview() {
+    AppConteoTheme {
+        RegistroContent(
             uiState = FormularioUiState(),
             onNombreCambia = {}, onCorreoCambia = {}, onContrasenaCambia = {},
             onAlternarVisibilidad = {}, onNoticiasCambia = {},
-            onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {}
+            onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {},
+            onIrLogin = {}, onVolver = {}
         )
     }
 }
 
 @Preview(showBackground = true, heightDp = 1400, name = "Con errores")
 @Composable
-private fun FormularioConErroresPreview() {
-    AppConteoTheme() {
-        FormularioContent(
+private fun RegistroConErroresPreview() {
+    AppConteoTheme {
+        RegistroContent(
             uiState = FormularioUiState(
                 correo = "ana@",
                 errorNombre = "El nombre es obligatorio",
@@ -366,7 +268,8 @@ private fun FormularioConErroresPreview() {
             ),
             onNombreCambia = {}, onCorreoCambia = {}, onContrasenaCambia = {},
             onAlternarVisibilidad = {}, onNoticiasCambia = {},
-            onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {}
+            onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {},
+            onIrLogin = {}, onVolver = {}
         )
     }
 }

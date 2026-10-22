@@ -1,11 +1,11 @@
 <resources>
     <string name="app_name">MiRegistro</string>
 
-    <string name="titulo_formulario">Crear</string>
+    <string name="titulo_formulario">Registrarse</string>
     <string name="banner_titulo">Únete a la comunidad</string>
     <string name="banner_subtitulo">Completa tus datos en menos de un minuto</string>
     <string name="seccion_datos">Datos personales</string>
-    <string name="seccion_preferencias">Preferencias</string>
+    <string name="seccion_notificaciones">Notificaciones</string>
     <string name="campo_nombre">Nombre completo</string>
     <string name="campo_correo">Correo electrónico</string>
     <string name="campo_contrasena">Contraseña</string>
@@ -56,4 +56,11 @@
     <string name="dialogo_eliminar_titulo">¿Eliminar usuario?</string>
     <string name="dialogo_eliminar_mensaje">Se eliminará a %1$s de la base de datos.</string>
     <string name="btn_eliminar">Eliminar</string>
+
+    <string name="bienvenido">Bienvenido</string>
+    <string name="btn_registrarse">Registrarse</string>
+    <string name="btn_iniciar_sesion">Iniciar sesión</string>
+    <string name="titulo_login">Iniciar sesión</string>
+    <string name="ya_tienes_cuenta">¿Ya tienes cuenta?</string>
+    <string name="no_tienes_cuenta">¿No tienes cuenta? Regístrate</string>
 </resources>

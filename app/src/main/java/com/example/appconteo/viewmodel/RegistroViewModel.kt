@@ -44,7 +44,13 @@ class RegistroViewModel : ViewModel() {
     fun onRegistrar(): Usuario? {
         val estado = _uiState.value
 
-        val errorNombre = if (estado.nombre.isBlank()) "El nombre es obligatorio" else null
+        val regexNombre = Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$")
+        val errorNombre = when {
+            estado.nombre.isBlank() -> "El nombre es obligatorio"
+            !estado.nombre.matches(regexNombre) -> "El nombre solo debe contener letras"
+            else -> null
+        }
+
         val errorCorreo = if (!estado.correo.contains("@") || !estado.correo.contains("."))
             "Ingresa un correo válido" else null
         val errorContrasena = if (estado.contrasena.length < 6)
@@ -65,7 +71,7 @@ class RegistroViewModel : ViewModel() {
             )
         }
 
-        return if (hayErrores) null else Usuario(estado.nombre, estado.correo)
+        return if (hayErrores) null else Usuario(estado.nombre, estado.correo, contrasena = estado.contrasena)
     }
 
     fun onLimpiar() {
