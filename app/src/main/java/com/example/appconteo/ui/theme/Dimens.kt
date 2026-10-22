@@ -18,10 +18,5 @@ object Dimens {
 
     val radioTarjeta = 20.dp
     val elevacionTarjeta = 2.dp
-
-    val altoBanner = 200.dp
-    val altoPortada = 180.dp
-    val tamanoAvatar = 120.dp
-    val bordeAvatar = 4.dp
     val tamanoIcono = 20.dp
 }
