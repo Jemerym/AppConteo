@@ -8,8 +8,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.appconteo.ui.screens.BienvenidoScreen
-import com.example.appconteo.ui.screens.RegistroScreen
 import com.example.appconteo.ui.screens.LoginScreen
+import com.example.appconteo.ui.screens.PerfilScreen
+import com.example.appconteo.ui.screens.RegistroScreen
 import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @Composable
@@ -18,7 +19,7 @@ fun AppNavegacion() {
     val usuariosViewModel: UsuariosViewModel = viewModel()
     val usuarioActual by usuariosViewModel.usuarioActual.collectAsStateWithLifecycle()
 
-    val startDestination = if (usuarioActual != null) Ruta.Registro.ruta else Ruta.Bienvenido.ruta
+    val startDestination = if (usuarioActual != null) Ruta.Perfil.ruta else Ruta.Bienvenido.ruta
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Ruta.Bienvenido.ruta) {
@@ -30,7 +31,7 @@ fun AppNavegacion() {
         composable(Ruta.Login.ruta) {
             LoginScreen(
                 onLoginExitoso = {
-                    navController.navigate(Ruta.Registro.ruta) {
+                    navController.navigate(Ruta.Perfil.ruta) {
                         popUpTo(Ruta.Bienvenido.ruta) { inclusive = true }
                     }
                 },
@@ -41,12 +42,30 @@ fun AppNavegacion() {
         composable(Ruta.Registro.ruta) {
             RegistroScreen(
                 onRegistroExitoso = { usuario ->
-                    usuariosViewModel.registrar(usuario) //
-                    navController.navigate(Ruta.Login.ruta) {
+                    usuariosViewModel.registrar(usuario)
+                    navController.navigate(Ruta.Perfil.ruta) {
                         popUpTo(Ruta.Registro.ruta) { inclusive = true }
                     }
                 },
                 onIrLogin = { navController.navigate(Ruta.Login.ruta) },
+                onVolver = { navController.popBackStack() }
+            )
+        }
+        composable(Ruta.Perfil.ruta) {
+            PerfilScreen(
+                usuario = usuarioActual,
+                onFotoTomada = { foto ->
+                    usuariosViewModel.cambiarAvatarDesdeCamara(foto)
+                },
+                onImagenElegida = { uri ->
+                    usuariosViewModel.cambiarAvatarDesdeGaleria(uri)
+                },
+                onCerrarSesion = {
+                    usuariosViewModel.cerrarSesion()
+                    navController.navigate(Ruta.Bienvenido.ruta) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
                 onVolver = { navController.popBackStack() }
             )
         }

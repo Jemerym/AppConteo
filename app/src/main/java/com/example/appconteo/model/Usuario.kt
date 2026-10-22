@@ -6,5 +6,6 @@ class Usuario(
     val id: Long = 0,
     val rolId: Long = Rol.ID_ESTUDIANTE,
     val rolNombre: String = "",
-    val contrasena: String = ""
+    val contrasena: String = "",
+    val avatar: ByteArray? = null
 )
