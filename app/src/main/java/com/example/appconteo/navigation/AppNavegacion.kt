@@ -10,7 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.appconteo.ui.screens.BienvenidoScreen
 import com.example.appconteo.ui.screens.LoginScreen
 import com.example.appconteo.ui.screens.PerfilScreen
-import com.example.appconteo.ui.screens.RegistroScreen
+
 import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @Composable
@@ -25,7 +25,6 @@ fun AppNavegacion() {
         composable(Ruta.Bienvenido.ruta) {
             BienvenidoScreen(
                 onNavegarLogin = { navController.navigate(Ruta.Login.ruta) },
-                onNavegarRegistro = { navController.navigate(Ruta.Registro.ruta) }
             )
         }
         composable(Ruta.Login.ruta) {
@@ -35,19 +34,7 @@ fun AppNavegacion() {
                         popUpTo(Ruta.Bienvenido.ruta) { inclusive = true }
                     }
                 },
-                onIrRegistro = { navController.navigate(Ruta.Registro.ruta) },
                 usuariosViewModel = usuariosViewModel
-            )
-        }
-        composable(Ruta.Registro.ruta) {
-            RegistroScreen(
-                onRegistroExitoso = { usuario ->
-                    usuariosViewModel.registrar(usuario)
-                    navController.navigate(Ruta.Login.ruta) {
-                        popUpTo(Ruta.Registro.ruta) { inclusive = true }
-                    }
-                },
-                onIrLogin = { navController.navigate(Ruta.Login.ruta) }
             )
         }
         composable(Ruta.Perfil.ruta) {

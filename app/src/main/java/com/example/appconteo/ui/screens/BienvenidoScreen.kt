@@ -23,8 +23,7 @@ import com.example.appconteo.ui.theme.Dimens
 
 @Composable
 fun BienvenidoScreen(
-    onNavegarLogin: () -> Unit,
-    onNavegarRegistro: () -> Unit
+    onNavegarLogin: () -> Unit
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -46,14 +45,6 @@ fun BienvenidoScreen(
             Spacer(Modifier.height(Dimens.espacioGrande))
 
             BotonPrincipal(
-                texto = stringResource(R.string.btn_registrarse),
-                onClick = onNavegarRegistro,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(Dimens.espacioMedio))
-
-            BotonSecundario(
                 texto = stringResource(R.string.btn_iniciar_sesion),
                 onClick = onNavegarLogin,
                 modifier = Modifier.fillMaxWidth()
@@ -66,6 +57,6 @@ fun BienvenidoScreen(
 @Composable
 private fun BienvenidoPreview() {
     AppConteoTheme {
-        BienvenidoScreen(onNavegarLogin = {}, onNavegarRegistro = {})
+        BienvenidoScreen(onNavegarLogin = {})
     }
 }
