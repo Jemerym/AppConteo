@@ -47,8 +47,7 @@ fun AppNavegacion() {
                         popUpTo(Ruta.Registro.ruta) { inclusive = true }
                     }
                 },
-                onIrLogin = { navController.navigate(Ruta.Login.ruta) },
-                onVolver = { navController.popBackStack() }
+                onIrLogin = { navController.navigate(Ruta.Login.ruta) }
             )
         }
         composable(Ruta.Perfil.ruta) {

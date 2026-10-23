@@ -54,7 +54,6 @@ import com.example.appconteo.viewmodel.RegistroViewModel
 fun RegistroScreen(
     onRegistroExitoso: (Usuario) -> Unit,
     onIrLogin: () -> Unit,
-    onVolver: () -> Unit,
     viewModel: RegistroViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -72,7 +71,6 @@ fun RegistroScreen(
         onRegistrar = { viewModel.onRegistrar()?.let { usuario -> onRegistroExitoso(usuario) } },
         onLimpiar = viewModel::onLimpiar,
         onIrLogin = onIrLogin,
-        onVolver = onVolver,
         snackbarHostState = snackbarHostState
     )
 }
@@ -91,25 +89,15 @@ fun RegistroContent(
     onRegistrar: () -> Unit,
     onLimpiar: () -> Unit,
     onIrLogin: () -> Unit,
-    onVolver: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.titulo_formulario)) },
-                navigationIcon = {
-                    IconButton(onClick = onVolver) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_volver),
-                            contentDescription = stringResource(R.string.cd_volver)
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
@@ -251,7 +239,7 @@ private fun RegistroVacioPreview() {
             onConfirmarContrasenaCambia = {},
             onAlternarVisibilidad = {}, onAlternarVisibilidadConfirmacion = {},
             onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {},
-            onIrLogin = {}, onVolver = {}
+            onIrLogin = {}
         )
     }
 }
@@ -273,7 +261,7 @@ private fun RegistroConErroresPreview() {
             onConfirmarContrasenaCambia = {},
             onAlternarVisibilidad = {}, onAlternarVisibilidadConfirmacion = {},
             onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {},
-            onIrLogin = {}, onVolver = {}
+            onIrLogin = {}
         )
     }
 }
