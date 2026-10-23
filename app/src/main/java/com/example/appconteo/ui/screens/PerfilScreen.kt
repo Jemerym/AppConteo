@@ -47,8 +47,7 @@ fun PerfilScreen(
     onFotoTomada: (Bitmap) -> Unit,
     onImagenElegida: (Uri) -> Unit,
     onCerrarSesion: () -> Unit,
-    onVolver: () -> Unit = {},
-) {
+    ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()

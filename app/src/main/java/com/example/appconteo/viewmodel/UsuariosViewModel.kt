@@ -95,7 +95,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
         if (usuarioEncontrado != null) {
             _usuarioActual.value = usuarioEncontrado
-            sesion.guardar(usuarioEncontrado.id) // Aquí sí guardamos la sesión
+            sesion.guardar(usuarioEncontrado.id)
             recargar()
             return true
         }

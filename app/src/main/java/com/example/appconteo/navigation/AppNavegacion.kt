@@ -65,7 +65,6 @@ fun AppNavegacion() {
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                onVolver = { navController.popBackStack() }
             )
         }
     }
