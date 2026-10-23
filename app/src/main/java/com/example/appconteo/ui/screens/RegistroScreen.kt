@@ -36,7 +36,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.R
-import com.example.appconteo.model.FormularioUiState
+import com.example.appconteo.model.RegistroUiState
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.ui.components.BotonPrincipal
 import com.example.appconteo.ui.components.BotonSecundario
@@ -80,7 +80,7 @@ fun RegistroScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegistroContent(
-    uiState: FormularioUiState,
+    uiState: RegistroUiState,
     onNombreCambia: (String) -> Unit,
     onCorreoCambia: (String) -> Unit,
     onContrasenaCambia: (String) -> Unit,
@@ -246,7 +246,7 @@ private fun MensajeExito(nombre: String) {
 private fun RegistroVacioPreview() {
     AppConteoTheme {
         RegistroContent(
-            uiState = FormularioUiState(),
+            uiState = RegistroUiState(),
             onNombreCambia = {}, onCorreoCambia = {}, onContrasenaCambia = {},
             onConfirmarContrasenaCambia = {},
             onAlternarVisibilidad = {}, onAlternarVisibilidadConfirmacion = {},
@@ -261,7 +261,7 @@ private fun RegistroVacioPreview() {
 private fun RegistroConErroresPreview() {
     AppConteoTheme {
         RegistroContent(
-            uiState = FormularioUiState(
+            uiState = RegistroUiState(
                 correo = "ana@",
                 errorNombre = "El nombre es obligatorio",
                 errorCorreo = "Ingresa un correo válido",

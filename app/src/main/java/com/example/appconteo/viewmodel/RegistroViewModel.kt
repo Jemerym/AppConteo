@@ -1,7 +1,8 @@
 package com.example.appconteo.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.example.appconteo.model.FormularioUiState
+import androidx.navigation.compose.R
+import com.example.appconteo.model.RegistroUiState
 import com.example.appconteo.model.Usuario
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -9,8 +10,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 class RegistroViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(FormularioUiState())
-    val uiState: StateFlow<FormularioUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(RegistroUiState())
+    val uiState: StateFlow<RegistroUiState> = _uiState.asStateFlow()
 
     fun onNombreCambia(valor: String) {
         _uiState.update { it.copy(nombre = valor, errorNombre = null, registroExitoso = false) }
@@ -82,6 +83,6 @@ class RegistroViewModel : ViewModel() {
     }
 
     fun onLimpiar() {
-        _uiState.value = FormularioUiState()
+        _uiState.value = RegistroUiState()
     }
 }

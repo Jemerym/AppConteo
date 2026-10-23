@@ -1,6 +1,6 @@
 package com.example.appconteo.model
 
-data class FormularioUiState(
+data class RegistroUiState(
     val nombre: String = "",
     val correo: String = "",
     val contrasena: String = "",
