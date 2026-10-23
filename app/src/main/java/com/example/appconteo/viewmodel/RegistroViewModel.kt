@@ -1,6 +1,5 @@
 package com.example.appconteo.viewmodel
 
-
 import androidx.lifecycle.ViewModel
 import com.example.appconteo.model.FormularioUiState
 import com.example.appconteo.model.Usuario
@@ -8,7 +7,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-
 
 class RegistroViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(FormularioUiState())
@@ -26,15 +24,16 @@ class RegistroViewModel : ViewModel() {
         _uiState.update { it.copy(contrasena = valor, errorContrasena = null, registroExitoso = false) }
     }
 
+    fun onConfirmarContrasenaCambia(valor: String) {
+        _uiState.update { it.copy(confirmarContrasena = valor, errorConfirmarContrasena = null, registroExitoso = false) }
+    }
 
     fun onAlternarVisibilidad() {
         _uiState.update { it.copy(contrasenaVisible = !it.contrasenaVisible) }
     }
 
-
-
-    fun onNoticiasCambia(valor: Boolean) {
-        _uiState.update { it.copy(recibirNoticias = valor) }
+    fun onAlternarVisibilidadConfirmacion() {
+        _uiState.update { it.copy(confirmarContrasenaVisible = !it.confirmarContrasenaVisible) }
     }
 
     fun onTerminosCambia(valor: Boolean) {
@@ -55,10 +54,17 @@ class RegistroViewModel : ViewModel() {
             "Ingresa un correo válido" else null
         val errorContrasena = if (estado.contrasena.length < 6)
             "Mínimo 6 caracteres" else null
+
+        val errorConfirmarContrasena = when {
+            estado.confirmarContrasena.isBlank() -> "Confirma tu contraseña"
+            estado.confirmarContrasena != estado.contrasena -> "Las contraseñas no coinciden"
+            else -> null
+        }
+
         val errorTerminos = if (!estado.aceptaTerminos)
             "Debes aceptar los términos" else null
 
-        val hayErrores = listOf(errorNombre, errorCorreo, errorContrasena, errorTerminos)
+        val hayErrores = listOf(errorNombre, errorCorreo, errorContrasena, errorConfirmarContrasena, errorTerminos)
             .any { it != null }
 
         _uiState.update {
@@ -66,6 +72,7 @@ class RegistroViewModel : ViewModel() {
                 errorNombre = errorNombre,
                 errorCorreo = errorCorreo,
                 errorContrasena = errorContrasena,
+                errorConfirmarContrasena = errorConfirmarContrasena,
                 errorTerminos = errorTerminos,
                 registroExitoso = !hayErrores
             )

@@ -43,7 +43,6 @@ import com.example.appconteo.ui.components.BotonSecundario
 import com.example.appconteo.ui.components.CampoContrasena
 import com.example.appconteo.ui.components.CampoTexto
 import com.example.appconteo.ui.components.CasillaConTexto
-import com.example.appconteo.ui.components.InterruptorConTexto
 import com.example.appconteo.ui.components.TarjetaSeccion
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
@@ -66,8 +65,9 @@ fun RegistroScreen(
         onNombreCambia = viewModel::onNombreCambia,
         onCorreoCambia = viewModel::onCorreoCambia,
         onContrasenaCambia = viewModel::onContrasenaCambia,
+        onConfirmarContrasenaCambia = viewModel::onConfirmarContrasenaCambia,
         onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
-        onNoticiasCambia = viewModel::onNoticiasCambia,
+        onAlternarVisibilidadConfirmacion = viewModel::onAlternarVisibilidadConfirmacion,
         onTerminosCambia = viewModel::onTerminosCambia,
         onRegistrar = { viewModel.onRegistrar()?.let { usuario -> onRegistroExitoso(usuario) } },
         onLimpiar = viewModel::onLimpiar,
@@ -84,8 +84,9 @@ fun RegistroContent(
     onNombreCambia: (String) -> Unit,
     onCorreoCambia: (String) -> Unit,
     onContrasenaCambia: (String) -> Unit,
+    onConfirmarContrasenaCambia: (String) -> Unit,
     onAlternarVisibilidad: () -> Unit,
-    onNoticiasCambia: (Boolean) -> Unit,
+    onAlternarVisibilidadConfirmacion: () -> Unit,
     onTerminosCambia: (Boolean) -> Unit,
     onRegistrar: () -> Unit,
     onLimpiar: () -> Unit,
@@ -149,13 +150,13 @@ fun RegistroContent(
                         onAlternarVisible = onAlternarVisibilidad,
                         error = uiState.errorContrasena
                     )
-                }
-
-                TarjetaSeccion(titulo = stringResource(R.string.seccion_notificaciones)) {
-                    InterruptorConTexto(
-                        texto = stringResource(R.string.opcion_noticias),
-                        activado = uiState.recibirNoticias,
-                        onCambio = onNoticiasCambia
+                    CampoContrasena(
+                        valor = uiState.confirmarContrasena,
+                        onValorCambia = onConfirmarContrasenaCambia,
+                        etiqueta = stringResource(R.string.campo_confirmar_contrasena),
+                        visible = uiState.confirmarContrasenaVisible,
+                        onAlternarVisible = onAlternarVisibilidadConfirmacion,
+                        error = uiState.errorConfirmarContrasena
                     )
                 }
 
@@ -247,7 +248,8 @@ private fun RegistroVacioPreview() {
         RegistroContent(
             uiState = FormularioUiState(),
             onNombreCambia = {}, onCorreoCambia = {}, onContrasenaCambia = {},
-            onAlternarVisibilidad = {}, onNoticiasCambia = {},
+            onConfirmarContrasenaCambia = {},
+            onAlternarVisibilidad = {}, onAlternarVisibilidadConfirmacion = {},
             onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {},
             onIrLogin = {}, onVolver = {}
         )
@@ -264,10 +266,12 @@ private fun RegistroConErroresPreview() {
                 errorNombre = "El nombre es obligatorio",
                 errorCorreo = "Ingresa un correo válido",
                 errorContrasena = "Mínimo 6 caracteres",
+                errorConfirmarContrasena = "Las contraseñas no coinciden",
                 errorTerminos = "Debes aceptar los términos"
             ),
             onNombreCambia = {}, onCorreoCambia = {}, onContrasenaCambia = {},
-            onAlternarVisibilidad = {}, onNoticiasCambia = {},
+            onConfirmarContrasenaCambia = {},
+            onAlternarVisibilidad = {}, onAlternarVisibilidadConfirmacion = {},
             onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {},
             onIrLogin = {}, onVolver = {}
         )

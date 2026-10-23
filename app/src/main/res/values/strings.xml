@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MiRegistro</string>
+    <string name="app_name">AppConteo</string>
 
     <string name="titulo_formulario">Registrarse</string>
     <string name="banner_titulo">Únete a la comunidad</string>
@@ -22,7 +22,7 @@
     <string name="seccion_intereses">Intereses</string>
     <string name="btn_seguir">Seguir</string>
     <string name="btn_siguiendo">Siguiendo</string>
-
+    <string name="campo_confirmar_contrasena">Confirmar contraseña</string>
     <string name="saludo">Hola, %1$s</string>
     <string name="menu_mi_perfil">Mi perfil</string>
     <string name="menu_ver_usuarios">Ver usuarios</string>

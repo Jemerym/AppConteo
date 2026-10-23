@@ -14,7 +14,7 @@ class UsuarioDbHelper(context: Context) :
     companion object {
         // NUEVO (SQLite): estos dos valores viajan al constructor del padre (línea de arriba)
         private const val NOMBRE_BD = "miregistro.db"
-        private const val VERSION_BD = 1
+        private const val VERSION_BD = 2
 
         private const val USU_CONTRASENA = "contrasena"
 
