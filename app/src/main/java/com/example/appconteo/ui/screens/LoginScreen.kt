@@ -1,46 +1,71 @@
 package com.example.appconteo.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.R
+import com.example.appconteo.model.LoginUiState
 import com.example.appconteo.ui.components.BotonPrincipal
+import com.example.appconteo.ui.components.CampoContrasena
 import com.example.appconteo.ui.components.CampoTexto
+import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
+import com.example.appconteo.viewmodel.LoginViewModel
+import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @Composable
 fun LoginScreen(
     onLoginExitoso: () -> Unit,
     onIrRegistro: () -> Unit,
-    onLoginIntentar: (String) -> Boolean
+    usuariosViewModel: UsuariosViewModel = viewModel(),
+    viewModel: LoginViewModel = viewModel()
 ) {
-    var correo by remember { mutableStateOf("") }
-    var errorCorreo by remember { mutableStateOf<String?>(null) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
+    LoginContent(
+        uiState = uiState,
+        onCorreoLogin = viewModel::onCorreoLogin,
+        onContrasenaLogin = viewModel::onContrasenaLogin,
+        onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
+        onLogin = {
+            if (viewModel.onLogin(usuariosViewModel)) {
+                onLoginExitoso()
+            }
+        },
+        onIrRegistro = onIrRegistro,
+        snackbarHostState = snackbarHostState
+    )
+}
+
+@Composable
+fun LoginContent(
+    uiState: LoginUiState,
+    onCorreoLogin: (String) -> Unit,
+    onContrasenaLogin: (String) -> Unit,
+    onAlternarVisibilidad: () -> Unit,
+    onLogin: () -> Unit,
+    onIrRegistro: () -> Unit,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
+) {
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(Dimens.espacioPantalla),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -54,41 +79,83 @@ fun LoginScreen(
             Spacer(Modifier.height(Dimens.espacioGrande))
 
             CampoTexto(
-                valor = correo,
-                onValorCambia = {
-                    correo = it
-                    errorCorreo = null
-                },
+                valor = uiState.correo,
+                onValorCambia = onCorreoLogin,
                 etiqueta = stringResource(R.string.campo_correo),
                 icono = R.drawable.ic_correo,
-                error = errorCorreo,
-                tipoTeclado = KeyboardType.Email
-            )
-
-            Spacer(Modifier.height(Dimens.espacioMedio))
-
-            BotonPrincipal(
-                texto = stringResource(R.string.btn_iniciar_sesion),
-                onClick = {
-                    if (correo.isBlank()) {
-                        errorCorreo = "El correo es obligatorio"
-                    } else {
-                        val exito = onLoginIntentar(correo)
-                        if (exito) {
-                            onLoginExitoso()
-                        } else {
-                            errorCorreo = "Correo no registrado"
-                        }
-                    }
-                },
+                error = uiState.errorCorreo,
+                tipoTeclado = KeyboardType.Email,
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(Modifier.height(Dimens.espacioMedio))
 
-            TextButton(onClick = onIrRegistro) {
-                Text(stringResource(R.string.no_tienes_cuenta))
+            CampoContrasena(
+                valor = uiState.contrasena,
+                onValorCambia = onContrasenaLogin,
+                etiqueta = stringResource(R.string.campo_contrasena),
+                visible = uiState.contrasenaVisible,
+                onAlternarVisible = onAlternarVisibilidad,
+                error = uiState.errorContrasena,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(Dimens.espacioGrande))
+
+            BotonPrincipal(
+                texto = stringResource(R.string.btn_iniciar_sesion),
+                onClick = onLogin,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(Dimens.espacioMedio))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "¿No tienes cuenta?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                TextButton(onClick = onIrRegistro) {
+                    Text(stringResource(R.string.btn_registrarse))
+                }
             }
         }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun LoginVacioPreview() {
+    AppConteoTheme {
+        LoginContent(
+            uiState = LoginUiState(),
+            onCorreoLogin = {},
+            onContrasenaLogin = {},
+            onAlternarVisibilidad = {},
+            onLogin = {},
+            onIrRegistro = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Login con Errores")
+@Composable
+private fun LoginConErroresPreview() {
+    AppConteoTheme {
+        LoginContent(
+            uiState = LoginUiState(
+                correo = "correo@ejemplo.com",
+                errorCorreo = "Correo o contraseña incorrectos"
+            ),
+            onCorreoLogin = {},
+            onContrasenaLogin = {},
+            onAlternarVisibilidad = {},
+            onLogin = {},
+            onIrRegistro = {}
+        )
     }
 }

@@ -45,15 +45,15 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     fun obtener(id: Long): Usuario? = db.buscarPorId(id)
 
     fun registrar(usuario: Usuario) {
-        val id = db.insertarUsuario(usuario)
-        _usuarioActual.value = db.buscarPorId(id)
-        sesion.guardar(id)
+        db.insertarUsuario(usuario)
         recargar()
     }
 
+
     fun actualizar(editado: Usuario) {
         db.actualizarUsuario(editado)
-        if (_usuarioActual.value?.id == editado.id) _usuarioActual.value = db.buscarPorId(editado.id)
+        if (_usuarioActual.value?.id == editado.id) _usuarioActual.value =
+            db.buscarPorId(editado.id)
         recargar()
     }
 
@@ -69,7 +69,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun cambiarAvatarDesdeGaleria(uri: Uri) {
-        val bitmap = ConvertidorImagen.desdeUri(getApplication(),uri) ?: return
+        val bitmap = ConvertidorImagen.desdeUri(getApplication(), uri) ?: return
         guardarAvatar(ConvertidorImagen.aBytes(bitmap))
     }
 
@@ -88,11 +88,15 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         db.close()
         super.onCleared()
     }
-    fun iniciarSesion(correo: String): Boolean {
-        val usuarioEncontrado = db.listarUsuarios().find { it.correo.equals(correo.trim(), ignoreCase = true) }
+
+    fun iniciarSesion(correo: String, contrasena: String): Boolean {
+        val usuarioEncontrado = db.listarUsuarios().find {
+            it.correo.equals(correo.trim(), ignoreCase = true) && it.contrasena == contrasena
+        }
         if (usuarioEncontrado != null) {
             _usuarioActual.value = usuarioEncontrado
-            sesion.guardar(usuarioEncontrado.id)
+            sesion.guardar(usuarioEncontrado.id) // Aquí sí guardamos la sesión
+            recargar()
             return true
         }
         return false

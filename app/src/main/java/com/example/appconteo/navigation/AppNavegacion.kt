@@ -36,14 +36,14 @@ fun AppNavegacion() {
                     }
                 },
                 onIrRegistro = { navController.navigate(Ruta.Registro.ruta) },
-                onLoginIntentar = { correo -> usuariosViewModel.iniciarSesion(correo) }
+                usuariosViewModel = usuariosViewModel
             )
         }
         composable(Ruta.Registro.ruta) {
             RegistroScreen(
                 onRegistroExitoso = { usuario ->
                     usuariosViewModel.registrar(usuario)
-                    navController.navigate(Ruta.Perfil.ruta) {
+                    navController.navigate(Ruta.Login.ruta) {
                         popUpTo(Ruta.Registro.ruta) { inclusive = true }
                     }
                 },
