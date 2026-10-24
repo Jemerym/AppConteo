@@ -14,8 +14,7 @@ class UsuarioDbHelper(context: Context) :
     companion object {
         // NUEVO (SQLite): estos dos valores viajan al constructor del padre (línea de arriba)
         private const val NOMBRE_BD = "miregistro.db"
-        private const val VERSION_BD = 2
-
+        private const val VERSION_BD = 4
         private const val USU_CONTRASENA = "contrasena"
 
         private const val TABLA_ROLES = "roles"
@@ -54,13 +53,10 @@ class UsuarioDbHelper(context: Context) :
                     "(1, 'Administrador'), (2, 'Docente'), (3, 'Estudiante')"
 
         private const val SQL_PRECARGAR_USUARIOS =
-            "INSERT INTO $TABLA_USUARIOS ($USU_NOMBRE, $USU_CORREO, $USU_ROL) VALUES " +
-                    "('Camila Rojas', 'camila@duocuc.cl', 1), " +
-                    "('Diego Muñoz', 'diego@duocuc.cl', 2), " +
-                    "('Valentina Soto', 'valentina@duocuc.cl', 3), " +
-                    "('Matías Pérez', 'matias@duocuc.cl', 3), " +
-                    "('Fernanda Díaz', 'fernanda@duocuc.cl', 3)"
-
+            "INSERT INTO $TABLA_USUARIOS ($USU_NOMBRE, $USU_CORREO, $USU_CONTRASENA, $USU_ROL) VALUES " +
+                    "('Administrador', 'admin@demo.cl', '1234', 1), " +
+                    "('Camila Rojas', 'camila@duocuc.cl', '123456', 1), " +
+                    "('Diego Muñoz', 'diego@duocuc.cl', '123456', 2)"
 
         private const val SQL_SELECT_USUARIOS =
             "SELECT u.*, r.$ROL_NOMBRE AS $ROL_NOMBRE " +
