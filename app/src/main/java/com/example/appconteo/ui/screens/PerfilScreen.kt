@@ -47,6 +47,7 @@ fun PerfilScreen(
     onFotoTomada: (Bitmap) -> Unit,
     onImagenElegida: (Uri) -> Unit,
     onCerrarSesion: () -> Unit,
+    onVolver: () -> Unit
     ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -117,9 +118,19 @@ fun PerfilScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Mi Perfil", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onVolver) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_volver),
+                            contentDescription = "volver",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
@@ -277,7 +288,8 @@ private fun PerfilPreview() {
             usuario = perfilPreview,
             onFotoTomada = {},
             onImagenElegida = {},
-            onCerrarSesion = {}
+            onCerrarSesion = {},
+            onVolver = {}
         )
     }
 }
@@ -290,7 +302,8 @@ private fun PerfilOscuroPreview() {
             usuario = perfilPreview,
             onFotoTomada = {},
             onImagenElegida = {},
-            onCerrarSesion = {}
+            onCerrarSesion = {},
+            onVolver = {}
         )
     }
 
