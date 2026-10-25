@@ -47,7 +47,6 @@ fun UsuariosContent(
     var porEliminar by remember { mutableStateOf<Usuario?>(null) }
     var modoEliminar by remember { mutableStateOf(false) } // Activa/desactiva los basureros
 
-    // Filtramos para que el admin solo vea a los observadores/estudiantes
     val observadores = remember(usuarios) {
         usuarios.filter { it.rolId != 1L }
     }
@@ -84,7 +83,6 @@ fun UsuariosContent(
                     }
                 },
                 actions = {
-                    // Botón en la esquina superior derecha para encender/apagar el modo eliminar
                     IconButton(onClick = { modoEliminar = !modoEliminar }) {
                         Icon(
                             painter = painterResource(R.drawable.ic_eliminar),
@@ -158,7 +156,6 @@ fun UsuariosContent(
     }
 }
 
-// --- PREVIEWS ---
 private val listaUsuariosPreview = listOf(
     Usuario(nombre = "Administrador Demo", correo = "admin@demo.cl", id = 1, rolId = 1, rolNombre = "Administrador"),
     Usuario(nombre = "Camila Rojas", correo = "camila@duocuc.cl", id = 2, rolId = 3, rolNombre = "Observador"),
