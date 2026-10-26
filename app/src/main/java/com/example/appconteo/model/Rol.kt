@@ -5,8 +5,6 @@ data class Rol(
     val nombre: String
 ) {
     companion object {
-        // NUEVO (Rol): id del rol que se asigna al registrarse desde el Formulario.
-        // Coincide con el dato precargado en onCreate (3 = Estudiante).
-        const val ID_ESTUDIANTE = 3L
+        const val ID_OBSERVADOR = 2L
     }
 }

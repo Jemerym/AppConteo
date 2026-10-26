@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.example.appconteo.model.HistorialItem
 import com.example.appconteo.model.Rol
 import com.example.appconteo.model.Usuario
 
@@ -12,9 +13,8 @@ class UsuarioDbHelper(context: Context) :
     SQLiteOpenHelper(context, NOMBRE_BD, null, VERSION_BD) {
 
     companion object {
-        // NUEVO (SQLite): estos dos valores viajan al constructor del padre (línea de arriba)
         private const val NOMBRE_BD = "miregistro.db"
-        private const val VERSION_BD = 4
+        private const val VERSION_BD = 7
         private const val USU_CONTRASENA = "contrasena"
 
         private const val TABLA_ROLES = "roles"
@@ -30,7 +30,20 @@ class UsuarioDbHelper(context: Context) :
 
         private const val USU_AVATAR = "avatar"
 
+        private const val TABLA_HISTORIAL = "historial_aforo"
+        private const val HIST_ID = "id_historial"
+        private const val HIST_OBSERVADOR = "observador_nombre"
+        private const val HIST_TIPO = "tipo_registro"
+        private const val HIST_DETALLE = "detalle"
+        private const val HIST_HORA = "hora"
 
+        private const val SQL_CREAR_HISTORIAL =
+            "CREATE TABLE $TABLA_HISTORIAL (" +
+                    "$HIST_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "$HIST_OBSERVADOR TEXT NOT NULL, " +
+                    "$HIST_TIPO TEXT NOT NULL, " +
+                    "$HIST_DETALLE TEXT NOT NULL, " +
+                    "$HIST_HORA TEXT NOT NULL)"
         private const val SQL_CREAR_ROLES =
             "CREATE TABLE $TABLA_ROLES (" +
                     "$ROL_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -45,9 +58,6 @@ class UsuarioDbHelper(context: Context) :
                     "$USU_AVATAR BLOB, "+
                     "$USU_ROL INTEGER NOT NULL REFERENCES $TABLA_ROLES($ROL_ID))"
 
-        private const val SQL_AGREGAR_AVATAR =
-            "ALTER TABLE $TABLA_USUARIOS ADD COLUMN $USU_AVATAR BLOB"
-
         private const val SQL_PRECARGAR_ROLES =
             "INSERT INTO $TABLA_ROLES ($ROL_ID, $ROL_NOMBRE) VALUES " +
                     "(1, 'Administrador'), (2, 'Docente'), (3, 'Estudiante')"
@@ -55,7 +65,7 @@ class UsuarioDbHelper(context: Context) :
         private const val SQL_PRECARGAR_USUARIOS =
             "INSERT INTO $TABLA_USUARIOS ($USU_NOMBRE, $USU_CORREO, $USU_CONTRASENA, $USU_ROL) VALUES " +
                     "('Administrador', 'admin@demo.cl', '1234', 1), " +
-                    "('Camila Rojas', 'camila@duocuc.cl', '123456', 1), " +
+                    "('Camila Rojas', 'camila@duocuc.cl', '123456', 2), " +
                     "('Diego Muñoz', 'diego@duocuc.cl', '123456', 2)"
 
         private const val SQL_SELECT_USUARIOS =
@@ -74,14 +84,15 @@ class UsuarioDbHelper(context: Context) :
         db.execSQL(SQL_CREAR_USUARIOS)
         db.execSQL(SQL_PRECARGAR_ROLES)
         db.execSQL(SQL_PRECARGAR_USUARIOS)
+        db.execSQL(SQL_CREAR_HISTORIAL)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS $TABLA_USUARIOS")
         db.execSQL("DROP TABLE IF EXISTS $TABLA_ROLES")
+        db.execSQL("DROP TABLE IF EXISTS $TABLA_HISTORIAL")
         onCreate(db)
     }
-
     fun listarRoles(): List<Rol> {
         val roles = mutableListOf<Rol>()
         readableDatabase.rawQuery(
@@ -98,9 +109,6 @@ class UsuarioDbHelper(context: Context) :
         }
         return roles
     }
-
-    fun insertarUsuario(usuario: Usuario): Long =
-        writableDatabase.insert(TABLA_USUARIOS, null, valoresDe(usuario))
 
     fun listarUsuarios(): List<Usuario> =
         consultarUsuarios("$SQL_SELECT_USUARIOS ORDER BY u.$USU_NOMBRE", null)
@@ -147,7 +155,33 @@ class UsuarioDbHelper(context: Context) :
         val valores = ContentValues().apply { put(USU_AVATAR, avatar) }
         return writableDatabase.update(TABLA_USUARIOS, valores, "$USU_ID = ?", arrayOf(id.toString()))
     }
+    fun insertarHistorial(observador: String, tipo: String, detalle: String, hora: String): Long {
+        val valores = ContentValues().apply {
+            put(HIST_OBSERVADOR, observador)
+            put(HIST_TIPO, tipo)
+            put(HIST_DETALLE, detalle)
+            put(HIST_HORA, hora)
+        }
+        return writableDatabase.insert(TABLA_HISTORIAL, null, valores)
+    }
 
+    fun listarHistorial(): List<HistorialItem> {
+        val lista = mutableListOf<HistorialItem>()
+        readableDatabase.rawQuery("SELECT * FROM $TABLA_HISTORIAL ORDER BY $HIST_ID DESC", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                lista.add(
+                    HistorialItem(
+                        id = cursor.getLong(cursor.getColumnIndexOrThrow(HIST_ID)),
+                        observadorNombre = cursor.getString(cursor.getColumnIndexOrThrow(HIST_OBSERVADOR)),
+                        tipoRegistro = cursor.getString(cursor.getColumnIndexOrThrow(HIST_TIPO)),
+                        detalle = cursor.getString(cursor.getColumnIndexOrThrow(HIST_DETALLE)),
+                        hora = cursor.getString(cursor.getColumnIndexOrThrow(HIST_HORA))
+                    )
+                )
+            }
+        }
+        return lista
+    }
     private fun leerUsuario(cursor: Cursor) = Usuario(
         nombre = cursor.getString(cursor.getColumnIndexOrThrow(USU_NOMBRE)),
         correo = cursor.getString(cursor.getColumnIndexOrThrow(USU_CORREO)),
@@ -159,4 +193,6 @@ class UsuarioDbHelper(context: Context) :
             if (cursor.isNull(columna)) null else cursor.getBlob(columna)
         }
     )
+
+
 }
