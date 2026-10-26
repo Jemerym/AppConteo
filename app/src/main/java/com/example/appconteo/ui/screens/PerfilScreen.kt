@@ -8,47 +8,56 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import com.example.appconteo.viewmodel.UsuariosViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.appconteo.R
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.data.ConvertidorImagen
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.permisos.Permisos
 import com.example.appconteo.ui.components.BotonPrincipal
 import com.example.appconteo.ui.components.BotonSecundario
+import com.example.appconteo.ui.components.BotonVolver
+import com.example.appconteo.ui.components.FotoPerfil
 import com.example.appconteo.ui.components.TarjetaSeccion
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
+import com.example.appconteo.viewmodel.PerfilViewModel
 import kotlinx.coroutines.launch
+
+@Composable
+fun PerfilScreen(
+    perfilViewModel: PerfilViewModel = viewModel(),
+    onVolver: () -> Unit
+) {
+    val usuario by perfilViewModel.usuarioActual.collectAsStateWithLifecycle()
+
+    PerfilContent(
+        usuario = usuario,
+        onFotoTomada = { foto -> perfilViewModel.cambiarAvatarDesdeCamara(foto) },
+        onImagenElegida = { uri -> perfilViewModel.cambiarAvatarDesdeGaleria(uri) },
+        onVolver = onVolver
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PerfilScreen(
+fun PerfilContent(
     usuario: Usuario?,
     onFotoTomada: (Bitmap) -> Unit,
     onImagenElegida: (Uri) -> Unit,
-    onCerrarSesion: () -> Unit,
     onVolver: () -> Unit
-    ) {
+) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -119,13 +128,7 @@ fun PerfilScreen(
             TopAppBar(
                 title = { Text("Mi Perfil", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onVolver) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_volver),
-                            contentDescription = "volver",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
+                    BotonVolver(onVolver = onVolver)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -146,30 +149,10 @@ fun PerfilScreen(
         ) {
             Spacer(modifier = Modifier.height(Dimens.espacioGrande))
 
-            Box(
-                modifier = Modifier
-                    .size(150.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .border(4.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                if (fotoBitmap != null) {
-                    Image(
-                        bitmap = fotoBitmap.asImageBitmap(),
-                        contentDescription = "Foto de perfil",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_persona),
-                        contentDescription = "Avatar sin foto",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(90.dp)
-                    )
-                }
-            }
+            FotoPerfil(
+                fotoBitmap = fotoBitmap,
+                modifier = Modifier.size(Dimens.tamanoAvatar)
+            )
 
             Spacer(modifier = Modifier.height(Dimens.espacioMedio))
 
@@ -236,25 +219,10 @@ fun PerfilScreen(
                 modifier = Modifier.padding(horizontal = Dimens.espacioPantalla)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.espacioChico)) {
-                    FilaDetalle(etiqueta = "ID Usuario:", valor = "#${usuario?.id ?: 1}")
                     FilaDetalle(etiqueta = "Correo:", valor = usuario?.correo ?: "-")
                     FilaDetalle(etiqueta = "Rol:", valor = usuario?.rolNombre ?: "Estudiante")
                 }
             }
-
-            Spacer(modifier = Modifier.height(Dimens.espacioGrande))
-
-            Button(
-                onClick = onCerrarSesion,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Dimens.espacioPantalla)
-            ) {
-                Text("Cerrar Sesión")
-            }
-
-            Spacer(modifier = Modifier.height(Dimens.espacioGrande))
         }
     }
 }
@@ -270,25 +238,21 @@ private fun FilaDetalle(etiqueta: String, valor: String) {
     }
 }
 
-
 private val perfilPreview = Usuario(
     nombre = "Benjamin Curiñanco",
     correo = "be.curinanco@duocuc.cl",
     id = 1,
     rolNombre = "Administrador"
-
-
 )
 
 @Preview(showBackground = true, showSystemUi = true, name = "Modo Claro")
 @Composable
 private fun PerfilPreview() {
     AppConteoTheme {
-        PerfilScreen(
+        PerfilContent(
             usuario = perfilPreview,
             onFotoTomada = {},
             onImagenElegida = {},
-            onCerrarSesion = {},
             onVolver = {}
         )
     }
@@ -298,13 +262,11 @@ private fun PerfilPreview() {
 @Composable
 private fun PerfilOscuroPreview() {
     AppConteoTheme(darkTheme = true) {
-        PerfilScreen(
+        PerfilContent(
             usuario = perfilPreview,
             onFotoTomada = {},
             onImagenElegida = {},
-            onCerrarSesion = {},
             onVolver = {}
         )
     }
-
 }
