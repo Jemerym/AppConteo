@@ -11,6 +11,7 @@ import com.example.appconteo.ui.screens.AdminScreen
 import com.example.appconteo.ui.screens.InicioUsuariosScreen
 import com.example.appconteo.ui.screens.LoginScreen
 import com.example.appconteo.ui.screens.PerfilScreen
+import com.example.appconteo.ui.screens.RegistroScreen
 import com.example.appconteo.ui.screens.UsuariosScreen
 import com.example.appconteo.viewmodel.ConteoViewModel
 import com.example.appconteo.viewmodel.UsuariosViewModel
@@ -36,6 +37,18 @@ fun AppNavegacion() {
     }
 
     NavHost(navController = navController, startDestination = startDestination) {
+
+        composable(Ruta.Registro.ruta) {
+            RegistroScreen(
+                onRegistroExitoso = { usuario ->
+                    usuariosViewModel.registrar(usuario)
+                    navController.navigate(Ruta.Login.ruta) {
+                        popUpTo(Ruta.Registro.ruta) { inclusive = true }
+                    }
+                },
+                onIrLogin = { navController.navigate(Ruta.Login.ruta) },
+            )
+        }
         composable(Ruta.Login.ruta) {
             LoginScreen(
                 onLoginExitoso = {
@@ -49,7 +62,10 @@ fun AppNavegacion() {
                     navController.navigate(destino) {
                     }
                 },
-                usuariosViewModel = usuariosViewModel
+                usuariosViewModel = usuariosViewModel,
+                onIrRegistro = {navController.navigate(Ruta.Registro.ruta){
+                    popUpTo(Ruta.Login.ruta) { inclusive = true }
+                } }
             )
         }
 

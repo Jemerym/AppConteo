@@ -5,7 +5,7 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import com.example.appconteo.model.HistorialItem
+import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Rol
 import com.example.appconteo.model.Usuario
 
@@ -14,22 +14,17 @@ class UsuarioDbHelper(context: Context) :
 
     companion object {
         private const val NOMBRE_BD = "miregistro.db"
-        private const val VERSION_BD = 7
+        private const val VERSION_BD = 8
         private const val USU_CONTRASENA = "contrasena"
-
         private const val TABLA_ROLES = "roles"
         private const val ROL_ID = "id_rol"
         private const val ROL_NOMBRE = "nombre_rol"
-
         private const val TABLA_USUARIOS = "usuarios"
         private const val USU_ID = "id_usuario"
         private const val USU_NOMBRE = "nombre"
         private const val USU_CORREO = "correo"
-
         private const val USU_ROL = "id_rol"
-
         private const val USU_AVATAR = "avatar"
-
         private const val TABLA_HISTORIAL = "historial_aforo"
         private const val HIST_ID = "id_historial"
         private const val HIST_OBSERVADOR = "observador_nombre"
@@ -93,6 +88,8 @@ class UsuarioDbHelper(context: Context) :
         db.execSQL("DROP TABLE IF EXISTS $TABLA_HISTORIAL")
         onCreate(db)
     }
+    fun insertarUsuario(usuario: Usuario): Long =
+        writableDatabase.insert(TABLA_USUARIOS, null, valoresDe(usuario))
     fun listarRoles(): List<Rol> {
         val roles = mutableListOf<Rol>()
         readableDatabase.rawQuery(
@@ -165,12 +162,12 @@ class UsuarioDbHelper(context: Context) :
         return writableDatabase.insert(TABLA_HISTORIAL, null, valores)
     }
 
-    fun listarHistorial(): List<HistorialItem> {
-        val lista = mutableListOf<HistorialItem>()
+    fun listarHistorial(): List<HistorialRegistros> {
+        val lista = mutableListOf<HistorialRegistros>()
         readableDatabase.rawQuery("SELECT * FROM $TABLA_HISTORIAL ORDER BY $HIST_ID DESC", null).use { cursor ->
             while (cursor.moveToNext()) {
                 lista.add(
-                    HistorialItem(
+                    HistorialRegistros(
                         id = cursor.getLong(cursor.getColumnIndexOrThrow(HIST_ID)),
                         observadorNombre = cursor.getString(cursor.getColumnIndexOrThrow(HIST_OBSERVADOR)),
                         tipoRegistro = cursor.getString(cursor.getColumnIndexOrThrow(HIST_TIPO)),

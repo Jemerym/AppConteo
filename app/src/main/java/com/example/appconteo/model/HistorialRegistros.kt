@@ -1,6 +1,6 @@
 package com.example.appconteo.model
 
-data class HistorialItem(
+data class HistorialRegistros(
     val id: Long = 0,
     val observadorNombre: String,
     val tipoRegistro: String,

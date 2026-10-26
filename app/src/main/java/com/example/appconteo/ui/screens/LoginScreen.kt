@@ -25,8 +25,10 @@ import com.example.appconteo.viewmodel.UsuariosViewModel
 @Composable
 fun LoginScreen(
     onLoginExitoso: () -> Unit,
+    onIrRegistro: () -> Unit,
     usuariosViewModel: UsuariosViewModel = viewModel(),
     viewModel: LoginViewModel = viewModel()
+
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -41,6 +43,8 @@ fun LoginScreen(
                 onLoginExitoso()
             }
         },
+
+        onIrRegistro = onIrRegistro,
         snackbarHostState = snackbarHostState
     )
 }
@@ -52,6 +56,7 @@ fun LoginContent(
     onContrasenaLogin: (String) -> Unit,
     onAlternarVisibilidad: () -> Unit,
     onLogin: () -> Unit,
+    onIrRegistro: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     Scaffold(
@@ -106,7 +111,19 @@ fun LoginContent(
             )
 
             Spacer(Modifier.height(Dimens.espacioMedio))
-
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "¿No tienes cuenta?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                TextButton(onClick = onIrRegistro) {
+                    Text(stringResource(R.string.btn_registrarse))
+                }
+            }
         }
     }
 }
@@ -120,7 +137,8 @@ private fun LoginVacioPreview() {
             onCorreoLogin = {},
             onContrasenaLogin = {},
             onAlternarVisibilidad = {},
-            onLogin = {}
+            onLogin = {},
+            onIrRegistro = {}
         )
     }
 }
@@ -137,7 +155,8 @@ private fun LoginConErroresPreview() {
             onCorreoLogin = {},
             onContrasenaLogin = {},
             onAlternarVisibilidad = {},
-            onLogin = {}
+            onLogin = {},
+            onIrRegistro = {}
         )
     }
 }

@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.update
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
     private val db = UsuarioDbHelper(application)
-    private val sesion = SesionPreferencias(application)
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()

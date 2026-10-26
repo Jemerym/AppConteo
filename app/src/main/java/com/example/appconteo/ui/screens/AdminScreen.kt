@@ -15,7 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.R
 import com.example.appconteo.model.ConteoUiState
-import com.example.appconteo.model.HistorialItem
+import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.ui.components.TarjetaAlerta
 import com.example.appconteo.ui.components.TarjetaMetrica
@@ -26,7 +26,7 @@ import com.example.appconteo.viewmodel.ConteoViewModel
 import kotlinx.coroutines.launch
 @Composable
 fun AdminScreen(
-    historial: List<HistorialItem>,
+    historial: List<HistorialRegistros>,
     usuarioActual: Usuario?,
     conteoViewModel: ConteoViewModel = viewModel(),
     onVerUsuarios: () -> Unit,
@@ -51,7 +51,7 @@ fun AdminScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminContent(
-    historial: List<HistorialItem>,
+    historial: List<HistorialRegistros>,
     usuarioActual: Usuario?,
     conteoState: ConteoUiState,
     onVerUsuarios: () -> Unit,
@@ -127,7 +127,7 @@ fun AdminContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 TarjetaMetrica(
-                    titulo = "Total Personas Adentro",
+                    titulo = "Total ingresos",
                     valor = "$totalPersonas",
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.fillMaxWidth()
@@ -214,8 +214,8 @@ private fun AdminPreview() {
     AppConteoTheme {
         AdminContent(
             historial = listOf(
-                HistorialItem(1, "Carlos Observador", "Cliente (Boleta)", "Tipo: Solo, Edad: 25-34", "12:35"),
-                HistorialItem(2, "Valentina Observadora", "Transeúnte (Aforo)", "Tipo: Grupo (3+), Edad: 18-24", "11:00")
+                HistorialRegistros(1, "Carlos Observador", "Cliente", "Tipo: Solo, Edad: 25-34", "12:35"),
+                HistorialRegistros(2, "Valentina Observadora", "Transeúnte", "Tipo: Grupo (3+), Edad: 18-24", "11:00")
             ),
             usuarioActual = Usuario(nombre = "Admin Principal", correo = "admin@demo.cl", rolNombre = "Administrador"),
             conteoState = ConteoUiState(totalPersonas = 100, boletasCajaTotal = 15),

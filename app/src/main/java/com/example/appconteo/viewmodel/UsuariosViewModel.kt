@@ -1,14 +1,10 @@
 package com.example.appconteo.viewmodel
 
 import android.app.Application
-import android.content.Context
-import android.graphics.Bitmap
-import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
-import com.example.appconteo.data.ConvertidorImagen
 import com.example.appconteo.data.SesionPreferencias
 import com.example.appconteo.data.UsuarioDbHelper
-import com.example.appconteo.model.HistorialItem
+import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Rol
 import com.example.appconteo.model.Usuario
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,7 +64,10 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         db.close()
         super.onCleared()
     }
-
+    fun registrar(usuario: Usuario) {
+        db.insertarUsuario(usuario)
+        recargar()
+    }
     fun iniciarSesion(correo: String, contrasena: String): Boolean {
         val usuarioEncontrado = db.listarUsuarios().find {
             it.correo.equals(correo.trim(), ignoreCase = true) && it.contrasena == contrasena
@@ -81,11 +80,12 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
         return false
     }
+
     fun recargarUsuarioActual() {
         _usuarioActual.value = db.buscarPorId(sesion.leer())
     }
     private val _historial = MutableStateFlow(db.listarHistorial())
-    val historial: StateFlow<List<HistorialItem>> = _historial.asStateFlow()
+    val historial: StateFlow<List<HistorialRegistros>> = _historial.asStateFlow()
 
     fun registrarEnHistorial(observadorNombre: String, tipo: String, detalle: String) {
         val horaActual = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())

@@ -23,7 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.R
 import com.example.appconteo.data.ConvertidorImagen
-import com.example.appconteo.model.HistorialItem
+import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.permisos.Permisos
 import com.example.appconteo.ui.components.BotonPrincipal
@@ -63,7 +63,7 @@ fun InicioUsuariosScreen(
 @Composable
 fun InicioUsuariosContent(
     usuario: Usuario?,
-    historial: List<HistorialItem>,
+    historial: List<HistorialRegistros>,
     onRegistrarEnHistorial: (observadorNombre: String, tipo: String, detalle: String) -> Unit,
     onVerPerfil: () -> Unit,
     onCerrarSesion: () -> Unit
