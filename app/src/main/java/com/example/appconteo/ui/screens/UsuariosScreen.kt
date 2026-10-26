@@ -15,6 +15,7 @@ import com.example.appconteo.ui.components.CampoTexto
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UsuariosScreen(
     usuarios: List<Usuario>,
@@ -24,28 +25,8 @@ fun UsuariosScreen(
     onEliminarUsuario: (Usuario) -> Unit,
     onVolver: () -> Unit
 ) {
-    UsuariosContent(
-        usuarios = usuarios,
-        usuarioActual = usuarioActual,
-        filtro = filtro,
-        onBuscar = onBuscar,
-        onEliminarUsuario = onEliminarUsuario,
-        onVolver = onVolver
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun UsuariosContent(
-    usuarios: List<Usuario>,
-    usuarioActual: Usuario?,
-    filtro: String,
-    onBuscar: (String) -> Unit,
-    onEliminarUsuario: (Usuario) -> Unit,
-    onVolver: () -> Unit
-) {
     var porEliminar by remember { mutableStateOf<Usuario?>(null) }
-    var modoEliminar by remember { mutableStateOf(false) } // Activa/desactiva los basureros
+    var modoEliminar by remember { mutableStateOf(false) }
 
     val observadores = remember(usuarios) {
         usuarios.filter { it.rolId != 1L }
@@ -137,7 +118,6 @@ fun UsuariosContent(
                             headlineContent = { Text(usuario.nombre) },
                             supportingContent = { Text(usuario.correo) },
                             trailingContent = {
-                                // Solo muestra el basurero si el modo eliminar está activado
                                 if (modoEliminar && usuario.id != usuarioActual?.id) {
                                     IconButton(onClick = { porEliminar = usuario }) {
                                         Icon(
@@ -168,7 +148,7 @@ private val adminPreviewUser = Usuario(nombre = "Admin Principal", correo = "adm
 @Composable
 private fun AdminPreview() {
     AppConteoTheme {
-        UsuariosContent(
+        UsuariosScreen(
             usuarios = listaUsuariosPreview,
             usuarioActual = adminPreviewUser,
             filtro = "",
