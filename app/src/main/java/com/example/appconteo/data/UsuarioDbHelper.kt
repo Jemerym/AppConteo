@@ -60,7 +60,7 @@ class UsuarioDbHelper(context: Context) :
 
         private const val SQL_PRECARGAR_ROLES =
             "INSERT INTO $TABLA_ROLES ($ROL_ID, $ROL_NOMBRE) VALUES " +
-                    "(1, 'Administrador'), (2, 'Docente'), (3, 'Estudiante')"
+                    "(1, 'Administrador'), (2, 'Observador')"
 
         private const val SQL_PRECARGAR_USUARIOS =
             "INSERT INTO $TABLA_USUARIOS ($USU_NOMBRE, $USU_CORREO, $USU_CONTRASENA, $USU_ROL) VALUES " +
