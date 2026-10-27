@@ -5,16 +5,19 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.icu.text.SimpleDateFormat
 import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Rol
 import com.example.appconteo.model.Usuario
+import java.util.Date
+import java.util.Locale
 
 class UsuarioDbHelper(context: Context) :
     SQLiteOpenHelper(context, NOMBRE_BD, null, VERSION_BD) {
 
     companion object {
         private const val NOMBRE_BD = "miregistro.db"
-        private const val VERSION_BD = 8
+        private const val VERSION_BD = 9
         private const val USU_CONTRASENA = "contrasena"
         private const val TABLA_ROLES = "roles"
         private const val ROL_ID = "id_rol"
@@ -31,13 +34,14 @@ class UsuarioDbHelper(context: Context) :
         private const val HIST_TIPO = "tipo_registro"
         private const val HIST_DETALLE = "detalle"
         private const val HIST_HORA = "hora"
-
+        private const val HIST_FECHA = "fecha"
         private const val SQL_CREAR_HISTORIAL =
             "CREATE TABLE $TABLA_HISTORIAL (" +
                     "$HIST_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "$HIST_OBSERVADOR TEXT NOT NULL, " +
                     "$HIST_TIPO TEXT NOT NULL, " +
                     "$HIST_DETALLE TEXT NOT NULL, " +
+                    "$HIST_FECHA TEXT NOT NULL, "+
                     "$HIST_HORA TEXT NOT NULL)"
         private const val SQL_CREAR_ROLES =
             "CREATE TABLE $TABLA_ROLES (" +
@@ -153,10 +157,13 @@ class UsuarioDbHelper(context: Context) :
         return writableDatabase.update(TABLA_USUARIOS, valores, "$USU_ID = ?", arrayOf(id.toString()))
     }
     fun insertarHistorial(observador: String, tipo: String, detalle: String, hora: String): Long {
+        val fechaActual = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
         val valores = ContentValues().apply {
             put(HIST_OBSERVADOR, observador)
             put(HIST_TIPO, tipo)
             put(HIST_DETALLE, detalle)
+            put(HIST_FECHA, fechaActual)
             put(HIST_HORA, hora)
         }
         return writableDatabase.insert(TABLA_HISTORIAL, null, valores)
@@ -172,6 +179,7 @@ class UsuarioDbHelper(context: Context) :
                         observadorNombre = cursor.getString(cursor.getColumnIndexOrThrow(HIST_OBSERVADOR)),
                         tipoRegistro = cursor.getString(cursor.getColumnIndexOrThrow(HIST_TIPO)),
                         detalle = cursor.getString(cursor.getColumnIndexOrThrow(HIST_DETALLE)),
+                        fecha = cursor.getString(cursor.getColumnIndexOrThrow(HIST_FECHA)), // <--- Se lee la fecha
                         hora = cursor.getString(cursor.getColumnIndexOrThrow(HIST_HORA))
                     )
                 )
@@ -191,5 +199,47 @@ class UsuarioDbHelper(context: Context) :
         }
     )
 
-
+    fun listarHistorialPorObservadorPaginado(
+        nombreObservador: String,
+        fechaFiltro: String? = null,
+        limite: Int = 15,
+        desplazamiento: Int = 0
+    ): List<HistorialRegistros> {
+        val where = StringBuilder("$HIST_OBSERVADOR = ?")
+        val args = mutableListOf(nombreObservador)
+        if (!fechaFiltro.isNullOrBlank()) {
+            where.append(" AND $HIST_FECHA = ?")
+            args.add(fechaFiltro)
+        }
+        val query = """
+        SELECT * FROM $TABLA_HISTORIAL
+        WHERE $where
+        ORDER BY $HIST_ID DESC
+        LIMIT ? OFFSET ?
+    """.trimIndent()
+        args.add(limite.toString())
+        args.add(desplazamiento.toString())
+        return readableDatabase.rawQuery(query, args.toTypedArray()).use { cursor ->
+            val iId = cursor.getColumnIndexOrThrow(HIST_ID)
+            val iObservador = cursor.getColumnIndexOrThrow(HIST_OBSERVADOR)
+            val iTipo = cursor.getColumnIndexOrThrow(HIST_TIPO)
+            val iDetalle = cursor.getColumnIndexOrThrow(HIST_DETALLE)
+            val iFecha = cursor.getColumnIndexOrThrow(HIST_FECHA)
+            val iHora = cursor.getColumnIndexOrThrow(HIST_HORA)
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(
+                        HistorialRegistros(
+                            id = cursor.getLong(iId),
+                            observadorNombre = cursor.getString(iObservador),
+                            tipoRegistro = cursor.getString(iTipo),
+                            detalle = cursor.getString(iDetalle),
+                            fecha = cursor.getString(iFecha),
+                            hora = cursor.getString(iHora)
+                        )
+                    )
+                }
+            }
+        }
+    }
 }

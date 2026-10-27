@@ -214,8 +214,8 @@ private fun AdminPreview() {
     AppConteoTheme {
         AdminContent(
             historial = listOf(
-                HistorialRegistros(1, "Carlos Observador", "Cliente", "Tipo: Solo, Edad: 25-34", "12:35"),
-                HistorialRegistros(2, "Valentina Observadora", "Transeúnte", "Tipo: Grupo (3+), Edad: 18-24", "11:00")
+                HistorialRegistros(1, "Carlos Observador", "Cliente", "Tipo: Solo, Edad: 25-34", "12:35","12:35"),
+                HistorialRegistros(2, "Valentina Observadora", "Transeúnte", "Tipo: Grupo (3+), Edad: 18-24", "11:00","11:00")
             ),
             usuarioActual = Usuario(nombre = "Admin Principal", correo = "admin@demo.cl", rolNombre = "Administrador"),
             conteoState = ConteoUiState(totalPersonas = 100, boletasCajaTotal = 15),

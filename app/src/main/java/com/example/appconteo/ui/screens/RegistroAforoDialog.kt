@@ -22,7 +22,6 @@ fun RegistroAforoDialog(
     onGuardar: ( tipo: String, rangoEdad: String) -> Unit,
     onGuardarYCerrar: ( tipo: String, rangoEdad: String) -> Unit
 ) {
-    var cantidad by remember { mutableStateOf("1") }
     var tipoGrupo by remember { mutableStateOf("Solo") }
     var rangoEdad by remember { mutableStateOf("25-34") }
     var mensajeExito by remember { mutableStateOf(false) }
@@ -88,9 +87,7 @@ fun RegistroAforoDialog(
             ) {
                 Button(
                     onClick = {
-                        val cant = cantidad.toIntOrNull() ?: 1
                         onGuardar(tipoGrupo, rangoEdad)
-                        cantidad = "1"
                         mensajeExito = true
                     },
                     modifier = Modifier
@@ -117,7 +114,6 @@ fun RegistroAforoDialog(
                     BotonSecundario(
                         texto = "Guardar ",
                         onClick = {
-                            val cant = cantidad.toIntOrNull() ?: 1
                             onGuardarYCerrar( tipoGrupo, rangoEdad)
                         },
                         modifier = Modifier.weight(1f)

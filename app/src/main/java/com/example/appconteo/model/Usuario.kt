@@ -1,6 +1,6 @@
 package com.example.appconteo.model
 
-class Usuario(
+data class Usuario(
     val nombre: String,
     val correo: String,
     val id: Long = 0,

@@ -5,5 +5,6 @@ data class HistorialRegistros(
     val observadorNombre: String,
     val tipoRegistro: String,
     val detalle: String,
+    val fecha: String = "",
     val hora: String
 )

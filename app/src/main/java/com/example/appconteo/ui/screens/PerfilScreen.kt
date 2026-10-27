@@ -38,14 +38,19 @@ import kotlinx.coroutines.launch
 @Composable
 fun PerfilScreen(
     perfilViewModel: PerfilViewModel = viewModel(),
+    onModificarPerfil: () -> Unit,
     onVolver: () -> Unit
 ) {
+    LaunchedEffect(Unit) {
+        perfilViewModel.recargarUsuario()
+    }
     val usuario by perfilViewModel.usuarioActual.collectAsStateWithLifecycle()
 
     PerfilContent(
         usuario = usuario,
         onFotoTomada = { foto -> perfilViewModel.cambiarAvatarDesdeCamara(foto) },
         onImagenElegida = { uri -> perfilViewModel.cambiarAvatarDesdeGaleria(uri) },
+        onModificarPerfil = onModificarPerfil,
         onVolver = onVolver
     )
 }
@@ -56,16 +61,15 @@ fun PerfilContent(
     usuario: Usuario?,
     onFotoTomada: (Bitmap) -> Unit,
     onImagenElegida: (Uri) -> Unit,
+    onModificarPerfil: () -> Unit,
     onVolver: () -> Unit
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
     val fotoBitmap = remember(usuario?.avatar) {
         ConvertidorImagen.aBitmap(usuario?.avatar)
     }
-
     fun avisarPermisoDenegado(mensaje: String) {
         scope.launch {
             val res = snackbarHostState.showSnackbar(
@@ -78,13 +82,11 @@ fun PerfilContent(
             }
         }
     }
-
     val lanzadorCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview()
     ) { foto: Bitmap? ->
         if (foto != null) onFotoTomada(foto)
     }
-
     fun abrirCamara() {
         try {
             lanzadorCamara.launch(null)
@@ -92,13 +94,11 @@ fun PerfilContent(
             scope.launch { snackbarHostState.showSnackbar("No se encontró app de cámara") }
         }
     }
-
     val pedirPermisoCamara = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { concedido ->
         if (concedido) abrirCamara() else avisarPermisoDenegado("Se requiere permiso de cámara")
     }
-
     val lanzadorGaleria = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { resultado ->
@@ -107,7 +107,6 @@ fun PerfilContent(
             onImagenElegida(uri)
         }
     }
-
     fun abrirGaleria() {
         val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         try {
@@ -168,20 +167,18 @@ fun PerfilContent(
                 modifier = Modifier.padding(top = Dimens.espacioChico)
             ) {
                 Text(
-                    text = usuario?.rolNombre?.ifBlank { "Estudiante" } ?: "Estudiante",
+                    text = usuario?.rolNombre?.ifBlank { "Observador" } ?: "Observador",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                 )
             }
-
             Text(
                 text = usuario?.correo ?: "sin_correo@duocuc.cl",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = Dimens.espacioChico)
             )
-
             Spacer(modifier = Modifier.height(Dimens.espacioGrande))
 
             TarjetaSeccion(
@@ -200,7 +197,6 @@ fun PerfilContent(
                         },
                         modifier = Modifier.weight(1f)
                     )
-
                     BotonSecundario(
                         texto = "Galería",
                         onClick = {
@@ -210,6 +206,11 @@ fun PerfilContent(
                         modifier = Modifier.weight(1f)
                     )
                 }
+                BotonPrincipal(
+                    texto = "Modificar Perfil",
+                    onClick = onModificarPerfil,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             Spacer(modifier = Modifier.height(Dimens.espacioMedio))
@@ -253,7 +254,8 @@ private fun PerfilPreview() {
             usuario = perfilPreview,
             onFotoTomada = {},
             onImagenElegida = {},
-            onVolver = {}
+            onVolver = {},
+            onModificarPerfil = {}
         )
     }
 }
@@ -266,7 +268,8 @@ private fun PerfilOscuroPreview() {
             usuario = perfilPreview,
             onFotoTomada = {},
             onImagenElegida = {},
-            onVolver = {}
+            onVolver = {},
+            onModificarPerfil = {}
         )
     }
 }

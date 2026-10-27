@@ -4,10 +4,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.appconteo.ui.screens.AdminScreen
+import com.example.appconteo.ui.screens.DetalleUsuarioScreen
+import com.example.appconteo.ui.screens.EditarPerfilScreen
 import com.example.appconteo.ui.screens.InicioUsuariosScreen
 import com.example.appconteo.ui.screens.LoginScreen
 import com.example.appconteo.ui.screens.PerfilScreen
@@ -20,7 +24,7 @@ import com.example.appconteo.viewmodel.UsuariosViewModel
 fun AppNavegacion() {
     val navController = rememberNavController()
     val usuariosViewModel: UsuariosViewModel = viewModel()
-    val conteoViewModel: ConteoViewModel = viewModel() // <--- Instanciado a nivel de navegación
+    val conteoViewModel: ConteoViewModel = viewModel()
     val usuarioActual by usuariosViewModel.usuarioActual.collectAsStateWithLifecycle()
     val usuarios by usuariosViewModel.usuarios.collectAsStateWithLifecycle()
     val filtro by usuariosViewModel.filtro.collectAsStateWithLifecycle()
@@ -104,8 +108,9 @@ fun AppNavegacion() {
                 usuarios = usuarios,
                 usuarioActual = usuarioActual,
                 filtro = filtro,
-                onBuscar = { texto -> usuariosViewModel.buscar(texto) },
-                onEliminarUsuario = { usuario -> usuariosViewModel.eliminar(usuario) },
+                onBuscar = usuariosViewModel::buscar,
+                onEditar = { id -> navController.navigate(Ruta.DetalleUsuario.crear(id)) },
+                onEliminarUsuario = usuariosViewModel::eliminar,
                 onVolver = {
                     if (navController.previousBackStackEntry != null) {
                         navController.popBackStack()
@@ -116,13 +121,38 @@ fun AppNavegacion() {
 
         composable(Ruta.Perfil.ruta) {
             PerfilScreen(
-                onVolver = { usuariosViewModel.recargarUsuarioActual()
-
+                onModificarPerfil = {
+                    navController.navigate(Ruta.EditarPerfil.ruta)
+                },
+                onVolver = {
+                    usuariosViewModel.recargarUsuarioActual()
                     if (navController.previousBackStackEntry != null) {
                         navController.popBackStack()
                     }
                 }
             )
+        }
+        composable(
+            route = Ruta.DetalleUsuario.ruta,
+            arguments = listOf(navArgument("usuarioId") { type = NavType.LongType })
+        ) { entrada ->
+            val usuarioId = entrada.arguments?.getLong("usuarioId") ?: 0L
+            DetalleUsuarioScreen(
+                usuarioId = usuarioId,
+                onVolver = { navController.navigateUp() }
+            )
+        }
+        composable(Ruta.EditarPerfil.ruta) {
+            val usuario = usuarioActual
+            if (usuario != null) {
+                EditarPerfilScreen(
+                    usuario = usuario,
+                    onVolver = { navController.navigateUp() },
+                    onGuardar = { editado -> usuariosViewModel.actualizar(editado)
+                        navController.navigateUp()
+                    }
+                )
+            }
         }
     }
 }
