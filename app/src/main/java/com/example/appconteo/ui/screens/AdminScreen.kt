@@ -97,8 +97,7 @@ fun AdminContent(
                 TopAppBar(
                     title = {
                         Text(
-                            if (usuarioActual != null) stringResource(R.string.saludo, usuarioActual.nombre)
-                            else "Panel de Administración"
+                            text = "Panel de Administración"
                         )
                     },
                     navigationIcon = {
@@ -217,7 +216,7 @@ private fun AdminPreview() {
                 HistorialRegistros(1, "Carlos Observador", "Cliente", "Tipo: Solo, Edad: 25-34", "12:35","12:35"),
                 HistorialRegistros(2, "Valentina Observadora", "Transeúnte", "Tipo: Grupo (3+), Edad: 18-24", "11:00","11:00")
             ),
-            usuarioActual = Usuario(nombre = "Admin Principal", correo = "admin@demo.cl", rolNombre = "Administrador"),
+            usuarioActual = Usuario(id = 1, nombre = "Admin", correo = "admin@demo.cl", rolNombre = "Administrador"),
             conteoState = ConteoUiState(totalPersonas = 100, boletasCajaTotal = 15),
             onVerUsuarios = {},
             onCerrarSesion = {}

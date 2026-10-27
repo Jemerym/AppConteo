@@ -32,7 +32,7 @@ class ConteoViewModel : ViewModel() {
         }
     }
 
-    fun onLimpiar() {
+    fun Limpiar() {
             _uiState.value = ConteoUiState()
         }
 }

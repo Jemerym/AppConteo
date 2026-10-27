@@ -214,7 +214,6 @@ private fun MensajeExito(nombre: String) {
     }
 }
 
-// --- PREVIEWS ---
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun RegistroVacioPreview() {
