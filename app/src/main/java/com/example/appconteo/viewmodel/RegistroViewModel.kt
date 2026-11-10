@@ -51,7 +51,7 @@ class RegistroViewModel : ViewModel() {
         }
 
         val errorCorreo = if (!estado.correo.contains("@") || !estado.correo.contains("."))
-            "Ingresa un correo válido" else null
+            "Ingresa un correo válido (demo@duocuc.cl)" else null
 
         val regexContrasena = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#\$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>?]).{8,}\$")
         val errorContrasena = if (!estado.contrasena.matches(regexContrasena))

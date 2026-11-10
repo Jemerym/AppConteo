@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -26,14 +27,15 @@ fun BotonPrincipal(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     habilitado: Boolean = true,
-    @DrawableRes icono: Int? = null
+    @DrawableRes icono: Int? = null,
+    colors: ButtonColors = EstilosBoton.coloresPrincipal()
 ) {
     Button(
         onClick = onClick,
         modifier = modifier.estiloAltoBoton(),
         enabled = habilitado,
         shape = EstilosBoton.forma,
-        colors = EstilosBoton.coloresPrincipal(),
+        colors = colors,
         elevation = EstilosBoton.elevacion(),
         contentPadding = EstilosBoton.relleno
     ) {

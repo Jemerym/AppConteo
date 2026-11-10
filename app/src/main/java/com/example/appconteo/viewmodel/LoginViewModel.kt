@@ -2,7 +2,6 @@ package com.example.appconteo.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import com.example.appconteo.data.SesionPreferencias
 import com.example.appconteo.data.UsuarioDbHelper
 import com.example.appconteo.model.LoginUiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,11 +16,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     fun onCorreoLogin(valor: String) {
-        _uiState.update { it.copy(correo = valor.trim(), errorCorreo = null, loginExitoso = false) }
+        _uiState.update { it.copy(correo = valor.trim(), errorCorreo = null, errorContrasena = null, loginExitoso = false) }
     }
 
     fun onContrasenaLogin(valor: String) {
-        _uiState.update { it.copy(contrasena = valor, errorContrasena = null, loginExitoso = false) }
+        _uiState.update { it.copy(contrasena = valor, errorCorreo = null, errorContrasena = null, loginExitoso = false) }
     }
 
     fun onAlternarVisibilidad() {
@@ -30,8 +29,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onLogin(usuariosViewModel: UsuariosViewModel): Boolean {
         val estado = _uiState.value
-
-        val errorCorreo = if (estado.correo.isBlank()) "El correo es obligatorio" else null
+        val errorCorreo = when {
+            estado.correo.isBlank() -> "El correo es obligatorio"
+            !estado.correo.contains("@") || !estado.correo.contains(".") -> "Ingresa un correo válido (ej: usuario@duocuc.cl)"
+            else -> null
+        }
         val errorContrasena = if (estado.contrasena.isBlank()) "La contraseña es obligatoria" else null
 
         if (errorCorreo != null || errorContrasena != null) {
@@ -40,14 +42,17 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             }
             return false
         }
-
         val exito = usuariosViewModel.iniciarSesion(estado.correo, estado.contrasena)
         if (exito) {
             _uiState.update { it.copy(loginExitoso = true) }
             return true
         } else {
+            val mensajeError = "Correo o contraseña incorrectos"
             _uiState.update {
-                it.copy(errorCorreo = "Correo o contraseña incorrectos")
+                it.copy(
+                    errorCorreo = mensajeError,
+                    errorContrasena = mensajeError
+                )
             }
             return false
         }

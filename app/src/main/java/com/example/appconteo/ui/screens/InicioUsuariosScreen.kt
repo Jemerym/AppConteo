@@ -2,6 +2,7 @@ package com.example.appconteo.ui.screens
 
 import android.content.ActivityNotFoundException
 import android.graphics.Bitmap
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -251,6 +252,7 @@ fun InicioUsuariosContent(
                                     "Cliente",
                                     "Tipo: $tipo, Edad: $rangoEdad"
                                 )
+                                Toast.makeText(context, "¡Registro exitoso!", Toast.LENGTH_SHORT).show() // <--- Aquí
                                 mostrarDialogoAforo = false
                                 abrirCamara()
                             } else {
@@ -259,6 +261,7 @@ fun InicioUsuariosContent(
                                     "Transeúnte",
                                     "Tipo: $tipo, Edad: $rangoEdad"
                                 )
+                                Toast.makeText(context, "¡Registro exitoso!", Toast.LENGTH_SHORT).show() // <--- Y aquí
                                 mostrarDialogoAforo = true
                             }
                         },
@@ -269,6 +272,7 @@ fun InicioUsuariosContent(
                                 tipoRegistro,
                                 "Tipo: $tipo, Edad: $rangoEdad"
                             )
+                            Toast.makeText(context, "¡Registro exitoso!", Toast.LENGTH_SHORT).show() // <--- Y aquí también
                             mostrarDialogoAforo = false
                             esConBoleta = false
                         }
