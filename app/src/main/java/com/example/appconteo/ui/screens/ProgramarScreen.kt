@@ -46,6 +46,7 @@ fun ProgramarScreen(
     onVolver: () -> Unit,
     onSesionProgramada: () -> Unit
 ) {
+
     val context = LocalContext.current
     val usuarios by usuariosViewModel.usuarios.collectAsStateWithLifecycle()
     val observadores = remember(usuarios) { usuarios.filter { it.rolId != 1L } }
