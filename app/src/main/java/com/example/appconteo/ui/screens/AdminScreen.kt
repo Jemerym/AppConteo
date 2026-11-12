@@ -30,6 +30,7 @@ fun AdminScreen(
     usuarioActual: Usuario?,
     conteoViewModel: ConteoViewModel = viewModel(),
     onVerUsuarios: () -> Unit,
+    onIrProgramarSesion: () -> Unit,
     onCerrarSesion: () -> Unit
 ) {
     val conteoState by conteoViewModel.uiState.collectAsStateWithLifecycle()
@@ -44,6 +45,7 @@ fun AdminScreen(
         usuarioActual = usuarioActual,
         conteoState = conteoState,
         onVerUsuarios = onVerUsuarios,
+        onIrProgramarSesion = onIrProgramarSesion,
         onCerrarSesion = onCerrarSesion
     )
 }
@@ -55,14 +57,16 @@ fun AdminContent(
     usuarioActual: Usuario?,
     conteoState: ConteoUiState,
     onVerUsuarios: () -> Unit,
+    onIrProgramarSesion: () -> Unit,
     onCerrarSesion: () -> Unit
-)  {    
+) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val clientesCount = remember(historial) { historial.count { it.tipoRegistro.contains("Cliente", ignoreCase = true) } }
     val totalPersonas = conteoState.totalPersonas
     val transeuntesCount = conteoState.transeuntes
     val boletasFaltantes = conteoState.boletasFaltantes
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -113,6 +117,13 @@ fun AdminContent(
                         titleContentColor = MaterialTheme.colorScheme.onPrimary,
                         navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                     )
+                )
+            },
+            floatingActionButton = {
+                ExtendedFloatingActionButton(
+                    onClick = onIrProgramarSesion,
+                    icon = { Icon(painterResource(R.drawable.ic_check), contentDescription = null) },
+                    text = { Text("Programar") }
                 )
             },
             containerColor = MaterialTheme.colorScheme.background
@@ -190,7 +201,7 @@ fun AdminContent(
                                         text = "${item.detalle} | Por: ${item.observadorNombre}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f)
                                     )
                                     Text(
                                         text = item.hora,
@@ -207,18 +218,20 @@ fun AdminContent(
         }
     }
 }
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun AdminPreview() {
     AppConteoTheme {
         AdminContent(
             historial = listOf(
-                HistorialRegistros(1, "Carlos Observador", "Cliente", "Tipo: Solo, Edad: 25-34", "12:35","12:35"),
-                HistorialRegistros(2, "Valentina Observadora", "Transeúnte", "Tipo: Grupo (3+), Edad: 18-24", "11:00","11:00")
+                HistorialRegistros(1, "Carlos Observador", "Cliente (Boleta)", 1,2,1,"Tipo: Solo, Edad: 25-34", "2025-03-30", "12:35"),
+                HistorialRegistros(2, "Valentina Observadora", "Transeúnte (Aforo)", 2, 1,1,"Tipo: Grupo (3+), Edad: 18-24", "2025-03-30","11:00")
             ),
             usuarioActual = Usuario(id = 1, nombre = "Admin", correo = "admin@demo.cl", rolNombre = "Administrador"),
             conteoState = ConteoUiState(totalPersonas = 100, boletasCajaTotal = 15),
             onVerUsuarios = {},
+            onIrProgramarSesion = {},
             onCerrarSesion = {}
         )
     }
