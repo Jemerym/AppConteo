@@ -15,6 +15,8 @@ import com.example.appconteo.ui.screens.EditarPerfilScreen
 import com.example.appconteo.ui.screens.InicioUsuariosScreen
 import com.example.appconteo.ui.screens.LoginScreen
 import com.example.appconteo.ui.screens.PerfilScreen
+import com.example.appconteo.ui.screens.ProgramarScreen
+import com.example.appconteo.ui.screens.RecuperarClaveScreen
 import com.example.appconteo.ui.screens.RegistroScreen
 import com.example.appconteo.ui.screens.UsuariosScreen
 import com.example.appconteo.viewmodel.ConteoViewModel
@@ -79,6 +81,7 @@ fun AppNavegacion() {
                 usuarioActual = usuarioActual,
                 conteoViewModel = conteoViewModel,
                 onVerUsuarios = { navController.navigate(Ruta.Usuarios.ruta) },
+                onIrProgramarSesion = { navController.navigate(Ruta.ProgramarSesion.ruta) },
                 onCerrarSesion = {
                     navController.navigate(Ruta.Login.ruta) {
                         popUpTo(0) { inclusive = true }
@@ -153,6 +156,17 @@ fun AppNavegacion() {
                     }
                 )
             }
+        }
+        composable(Ruta.ProgramarSesion.ruta) {
+            ProgramarScreen(
+                usuariosViewModel = usuariosViewModel,
+                onVolver = {
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()}},
+                onSesionProgramada = {
+                    navController.popBackStack(Ruta.Admin.ruta, inclusive = false)
+                }
+            )
         }
     }
 }
