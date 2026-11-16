@@ -7,5 +7,6 @@ data class Usuario(
     val rolId: Long = Rol.ID_OBSERVADOR,
     val rolNombre: String = "",
     val contrasena: String = "",
+    val palabraSecreta: String = "",
     val avatar: ByteArray? = null
 )
