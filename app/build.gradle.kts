@@ -57,4 +57,12 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.1")
 
     implementation("androidx.navigation:navigation-compose:2.10.2")
+
+    // Google ML Kit Barcode Scanning & CameraX
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    val cameraxVersion = "1.3.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
 }
