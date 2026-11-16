@@ -10,6 +10,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.appconteo.R
+import com.example.appconteo.model.Rol
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.ui.components.CampoTexto
 import com.example.appconteo.ui.theme.AppConteoTheme
@@ -30,7 +31,7 @@ fun UsuariosScreen(
     var modoEliminar by remember { mutableStateOf(false) }
 
     val observadores = remember(usuarios) {
-        usuarios.filter { it.rolId != 1L }
+        usuarios.filter { it.rolId != Rol.ID_ADMINISTRADOR }
     }
 
     porEliminar?.let { usuario ->
