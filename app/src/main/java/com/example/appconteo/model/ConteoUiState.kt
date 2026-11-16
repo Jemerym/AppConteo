@@ -5,7 +5,8 @@ data class ConteoUiState(
     val boletasCajaTotal: Int = 15,
     val clientes: Int = 0,
     val boletasEscaneadas: Int = 0,
-    val historial: List<HistorialRegistros> = emptyList()
+    val historial: List<HistorialRegistros> = emptyList(),
+    val mensajeError: String? = null
 ) {
     val transeuntes: Int
         get() = (totalPersonas - clientes).coerceAtLeast(0)
