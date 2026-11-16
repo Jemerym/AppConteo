@@ -3,22 +3,39 @@ package com.example.appconteo.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.example.appconteo.data.UsuarioDbHelper
+import com.example.appconteo.model.Fechas
 import com.example.appconteo.model.ProgramarUiState
 import com.example.appconteo.model.Usuario
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 class ProgramarViewModel(application: Application) : AndroidViewModel(application) {
     private val db = UsuarioDbHelper(application)
+    private var turnoIdEditando: Long = 0L
 
     private val _uiState = MutableStateFlow(ProgramarUiState())
     val uiState: StateFlow<ProgramarUiState> = _uiState.asStateFlow()
+
+    fun cargarTurno(turnoId: Long) {
+        turnoIdEditando = turnoId
+        if (turnoId > 0L) {
+            val turno = db.buscarTurnoPorId(turnoId)
+            if (turno != null) {
+                val observador = db.buscarPorId(turno.usuarioId)
+                _uiState.update {
+                    it.copy(
+                        accesoSeleccionado = turno.acceso,
+                        observadorSeleccionado = observador,
+                        diasOffset = if (turno.fecha == Fechas.conOffset(1)) 1 else 0,
+                        tramoSeleccionado = turno.horaInicio to turno.horaFin,
+                        esEdicion = true
+                    )
+                }
+            }
+        }
+    }
 
     fun onAccesoSeleccionado(acceso: Int) {
         _uiState.update { it.copy(accesoSeleccionado = acceso, mensajeError = null) }
@@ -43,18 +60,30 @@ class ProgramarViewModel(application: Application) : AndroidViewModel(applicatio
             return false
         }
 
-        val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, estado.diasOffset) }
-        val fechaCalculada = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
+        val fechaCalculada = Fechas.conOffset(estado.diasOffset)
 
         val horaInicio = estado.tramoSeleccionado.first
         val horaFin = estado.tramoSeleccionado.second
 
-        if (db.haySolapamientoTurno(obs.id, estado.accesoSeleccionado, fechaCalculada, horaInicio, horaFin)) {
+        if (db.haySolapamientoTurno(obs.id, estado.accesoSeleccionado, fechaCalculada, horaInicio, horaFin, excluirIdTurno = turnoIdEditando)) {
             _uiState.update { it.copy(mensajeError = "⚠️ Conflicto: El guardia ya está ocupado o esta puerta ya tiene un turno a esa hora.") }
             return false
         }
 
-        db.insertarTurno(obs.id, estado.accesoSeleccionado, horaInicio, horaFin, fechaCalculada)
+        if (turnoIdEditando > 0L) {
+            val exito = db.actualizarTurno(turnoIdEditando, obs.id, estado.accesoSeleccionado, horaInicio, horaFin, fechaCalculada)
+            if (exito <= 0) {
+                _uiState.update { it.copy(mensajeError = "Error al actualizar el turno en la base de datos.") }
+                return false
+            }
+        } else {
+            val idNuevo = db.insertarTurno(obs.id, estado.accesoSeleccionado, horaInicio, horaFin, fechaCalculada)
+            if (idNuevo == -1L) {
+                _uiState.update { it.copy(mensajeError = "Error al guardar el turno en la base de datos.") }
+                return false
+            }
+        }
+
         _uiState.update { it.copy(asignacionExitosa = true, mensajeError = null) }
         return true
     }

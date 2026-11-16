@@ -6,5 +6,6 @@ data class ProgramarUiState(
     val diasOffset: Int = 0,
     val tramoSeleccionado: Pair<String, String> = "10:00" to "10:30",
     val mensajeError: String? = null,
-    val asignacionExitosa: Boolean = false
+    val asignacionExitosa: Boolean = false,
+    val esEdicion: Boolean = false
 )
