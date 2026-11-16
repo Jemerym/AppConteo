@@ -1,5 +1,6 @@
 package com.example.appconteo.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -7,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,11 +31,16 @@ fun VerRegistrosScreen(
     usuarioActual: Usuario? = null,
     turnoIdFiltro: Long? = null,
     onVolver: () -> Unit,
-    onAnularRegistro: ((Long) -> Unit)? = null
+    onAnularRegistro: ((Long) -> Unit)? = null,
+    onModificarRegistro: ((id: Long, acceso: Int, grupo: String, edad: String) -> Unit)? = null
 ) {
+    val context = LocalContext.current
     var fechaFiltro by remember { mutableStateOf("") }
     var accesoFiltro by remember { mutableStateOf<Int?>(null) }
     var tipoFiltro by remember { mutableStateOf<String?>(null) }
+
+    var registroParaEditar by remember { mutableStateOf<HistorialRegistros?>(null) }
+    var registroParaEliminar by remember { mutableStateOf<HistorialRegistros?>(null) }
 
     val accesosInfo = remember { CatalogosRincon.accesosInfo }
 
@@ -43,7 +50,7 @@ fun VerRegistrosScreen(
 
     val filtrados = remember(historial, turnoIdFiltro, fechaFiltro, accesoFiltro, tipoFiltro, esAdmin, idActual, nombreActual) {
         historial.filter { item ->
-            val coincideRol = esAdmin || item.usuarioId == idActual
+            val coincideRol = esAdmin || item.usuarioId == idActual || (nombreActual.isNotEmpty() && item.observadorNombre.equals(nombreActual, ignoreCase = true))
             val coincideTurno = turnoIdFiltro == null || turnoIdFiltro <= 0L || item.idTurno == turnoIdFiltro
             val coincideFecha = fechaFiltro.isBlank() || item.fecha.contains(fechaFiltro.trim())
             val coincideAcceso = accesoFiltro == null || item.acceso == accesoFiltro
@@ -56,7 +63,7 @@ fun VerRegistrosScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (turnoIdFiltro != null && turnoIdFiltro > 0L) "Registros de este Turno" else "Mis Registros de Aforo", fontWeight = FontWeight.Bold) },
+                title = { Text(if (turnoIdFiltro != null && turnoIdFiltro > 0L) "Registros de este Turno" else "Registros de Aforo", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onVolver) {
                         Icon(painterResource(R.drawable.ic_volver), contentDescription = "Volver")
@@ -147,7 +154,7 @@ fun VerRegistrosScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No hay registros tuyos para mostrar",
+                            text = "No hay registros para mostrar",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -181,13 +188,26 @@ fun VerRegistrosScreen(
                                 )
                             }
 
-                            if (esAdmin && onAnularRegistro != null) {
-                                IconButton(onClick = { onAnularRegistro(item.id) }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_eliminar),
-                                        contentDescription = "Anular Registro",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
+                            if (esAdmin) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    if (onModificarRegistro != null) {
+                                        IconButton(onClick = { registroParaEditar = item }) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_editar),
+                                                contentDescription = "Editar Registro",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                    if (onAnularRegistro != null) {
+                                        IconButton(onClick = { registroParaEliminar = item }) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_eliminar),
+                                                contentDescription = "Anular Registro",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -196,19 +216,56 @@ fun VerRegistrosScreen(
             }
         }
     }
+
+    // Reutilizamos el RegistroAforoDialog existente precargado con los datos actuales
+    registroParaEditar?.let { reg ->
+        RegistroAforoDialog(
+            initialTipoGrupo = reg.tipoGrupo,
+            initialRangoEdad = reg.rangoEtario,
+            mostrarBotonSeguir = false,
+            onDismiss = { registroParaEditar = null },
+            onGuardarYCerrar = { tipoGrupo, rangoEdad ->
+                onModificarRegistro?.invoke(reg.id, reg.acceso, tipoGrupo, rangoEdad)
+                registroParaEditar = null
+                Toast.makeText(context, "Registro actualizado con éxito", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // Diálogo de Confirmación para Eliminar Registro
+    registroParaEliminar?.let { reg ->
+        AlertDialog(
+            onDismissRequest = { registroParaEliminar = null },
+            title = { Text("Anular Registro") },
+            text = { Text("¿Estás seguro de que deseas anular este registro de ${reg.observadorNombre} (${reg.tipoRegistro})?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onAnularRegistro?.invoke(reg.id)
+                    registroParaEliminar = null
+                    Toast.makeText(context, "Registro anulado con éxito", Toast.LENGTH_SHORT).show()
+                }) {
+                    Text("Anular / Eliminar", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { registroParaEliminar = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }
 
-@Preview(showBackground = true, showSystemUi = true, name = "Vista General Admin con Filtros")
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun VerRegistrosPreview() {
     AppConteoTheme {
         VerRegistrosScreen(
             historial = listOf(
-                HistorialRegistros(id = 1, observadorNombre = "Carlos Observador", tipoRegistro = "Cliente (Boleta)", acceso = 1, idTurno = 1, usuarioId = 2, tipoGrupo = "Solo", rangoEtario = "25-34", fecha = "2025-03-30", hora = "12:35"),
-                HistorialRegistros(id = 2, observadorNombre = "Valentina Observadora", tipoRegistro = "Transeúnte (Aforo)", acceso = 2, idTurno = 2, usuarioId = 3, tipoGrupo = "Grupo (3+)", rangoEtario = "18-24", fecha = "2025-03-30", hora = "11:00")
+                HistorialRegistros(id = 1, observadorNombre = "Carlos", tipoRegistro = "Cliente (Boleta)", acceso = 1, idTurno = 10, tipoGrupo = "Solo", rangoEtario = "25-34", fecha = "2025-03-30", hora = "12:35"),
+                HistorialRegistros(id = 2, observadorNombre = "Valentina", tipoRegistro = "Transeúnte (Aforo)", acceso = 2, idTurno = 10, tipoGrupo = "Grupo (3+)", rangoEtario = "18-24", fecha = "2025-03-30", hora = "11:00")
             ),
-            usuarioActual = Usuario(id = 1, nombre = "Admin", correo = "admin@demo.cl", rolId = 1),
-            turnoIdFiltro = null,
+            turnoIdFiltro = 10L,
             onVolver = {}
         )
     }

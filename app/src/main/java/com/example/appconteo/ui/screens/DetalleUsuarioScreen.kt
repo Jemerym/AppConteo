@@ -36,10 +36,9 @@ fun DetalleUsuarioScreen(
 
     val accesosInfo = remember { CatalogosRincon.accesosInfo }
 
-    val registros = remember(usuarioId, nombreUsuario, fechaFiltro, limiteActual) {
+    val registros = remember(usuarioId, fechaFiltro, limiteActual) {
         usuariosViewModel.listarHistorialPorUsuarioPaginado(
             usuarioId = usuarioId,
-            nombreObservador = nombreUsuario,
             fechaFiltro = fechaFiltro,
             limite = limiteActual
         )

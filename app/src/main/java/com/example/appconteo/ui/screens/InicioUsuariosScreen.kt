@@ -105,6 +105,7 @@ fun InicioUsuariosScreen(
                 codigoActual = null
                 conteoViewModel.recargarConteo()
             }
+            guardado
         },
         onVerPerfil = onVerPerfil,
         onVerTurnos = onVerTurnos,
@@ -126,7 +127,7 @@ fun InicioUsuariosContent(
     accesoActual: Int = -1,
     codigoScannedTrigger: Boolean = false,
     onDispararDialogoEscaneo: () -> Unit = {},
-    onRegistrarEnHistorial: (observadorNombre: String, tipo: String, tipoGrupo: String, rangoEtario: String) -> Unit,
+    onRegistrarEnHistorial: (observadorNombre: String, tipo: String, tipoGrupo: String, rangoEtario: String) -> Boolean,
     onVerPerfil: () -> Unit,
     onVerTurnos: () -> Unit,
     onVerRegistros: () -> Unit,
@@ -289,19 +290,23 @@ fun InicioUsuariosContent(
                         onDismiss = { mostrarDialogoAforo = false },
                         onGuardar = { tipoGrupo, rangoEdad ->
                             val tipoReg = if (esConBoleta) Clasificacion.CLIENTE.etiqueta else Clasificacion.TRANSITO.etiqueta
-                            onRegistrarEnHistorial(nombreObservador, tipoReg, tipoGrupo, rangoEdad)
-                            Toast.makeText(context, "¡Registro guardado!", Toast.LENGTH_SHORT).show()
-                            if (esConBoleta) {
-                                mostrarDialogoAforo = false
-                                onEscanearQr()
+                            val guardado = onRegistrarEnHistorial(nombreObservador, tipoReg, tipoGrupo, rangoEdad)
+                            if (guardado) {
+                                Toast.makeText(context, "¡Registro guardado con éxito!", Toast.LENGTH_SHORT).show()
+                                if (esConBoleta) {
+                                    mostrarDialogoAforo = false
+                                    onEscanearQr()
+                                }
                             }
                         },
                         onGuardarYCerrar = { tipoGrupo, rangoEdad ->
                             val tipoReg = if (esConBoleta) Clasificacion.CLIENTE.etiqueta else Clasificacion.TRANSITO.etiqueta
-                            onRegistrarEnHistorial(nombreObservador, tipoReg, tipoGrupo, rangoEdad)
-                            Toast.makeText(context, "¡Registro guardado con éxito!", Toast.LENGTH_SHORT).show()
-                            mostrarDialogoAforo = false
-                            esConBoleta = false
+                            val guardado = onRegistrarEnHistorial(nombreObservador, tipoReg, tipoGrupo, rangoEdad)
+                            if (guardado) {
+                                Toast.makeText(context, "¡Registro guardado con éxito!", Toast.LENGTH_SHORT).show()
+                                mostrarDialogoAforo = false
+                                esConBoleta = false
+                            }
                         }
                     )
                 }
@@ -384,7 +389,7 @@ private fun InicioUsuariosPreview() {
             usuario = Usuario(nombre = "Benjamin Curiñanco", correo = "benjamin@duocuc.cl"),
             historial = emptyList(),
             accesoActual = 2,
-            onRegistrarEnHistorial = { _, _, _, _ -> },
+            onRegistrarEnHistorial = { _, _, _, _ -> true },
             onVerPerfil = {},
             onVerTurnos = {},
             onVerRegistros = {},

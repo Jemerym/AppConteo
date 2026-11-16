@@ -51,11 +51,8 @@ fun MisTurnosScreen(
         if (esAdmin) {
             turnos
         } else {
-            val nombreActual = usuario?.nombre ?: ""
             val idActual = usuario?.id ?: -1L
-            turnos.filter {
-                it.usuarioId == idActual || (nombreActual.isNotEmpty() && it.observadorNombre.equals(nombreActual, ignoreCase = true))
-            }
+            turnos.filter { it.usuarioId == idActual }
         }
     }
 

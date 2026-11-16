@@ -12,6 +12,7 @@ import com.example.appconteo.model.RangoEtario
 import com.example.appconteo.model.TipoCompania
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
+import com.example.appconteo.ui.components.BotonPrincipal
 import com.example.appconteo.ui.components.BotonSecundario
 import com.example.appconteo.ui.style.EstilosBoton
 import com.example.appconteo.ui.style.estiloAltoBoton
@@ -20,12 +21,15 @@ import com.example.appconteo.ui.theme.Blanco
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegistroAforoDialog(
+    initialTipoGrupo: String = TipoCompania.SOLO.etiqueta,
+    initialRangoEdad: String = RangoEtario.EDAD_25_34.etiqueta,
+    mostrarBotonSeguir: Boolean = true,
     onDismiss: () -> Unit,
-    onGuardar: (tipo: String, rangoEdad: String) -> Unit,
+    onGuardar: (tipo: String, rangoEdad: String) -> Unit = { _, _ -> },
     onGuardarYCerrar: (tipo: String, rangoEdad: String) -> Unit
 ) {
-    var tipoGrupo by remember { mutableStateOf(TipoCompania.SOLO.etiqueta) }
-    var rangoEdad by remember { mutableStateOf(RangoEtario.EDAD_25_34.etiqueta) }
+    var tipoGrupo by remember { mutableStateOf(initialTipoGrupo) }
+    var rangoEdad by remember { mutableStateOf(initialRangoEdad) }
     var mensajeExito by remember { mutableStateOf(false) }
 
     val tipos = TipoCompania.entries
@@ -33,7 +37,7 @@ fun RegistroAforoDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Registro Aforo") },
+        title = { Text(if (mostrarBotonSeguir) "Registro Aforo" else "Modificar Registro") },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio),
@@ -71,7 +75,7 @@ fun RegistroAforoDialog(
                     }
                 }
 
-                if (mensajeExito) {
+                if (mensajeExito && mostrarBotonSeguir) {
                     Text(
                         text = "¡Registrado! Listo para el siguiente...",
                         color = MaterialTheme.colorScheme.primary,
@@ -86,20 +90,22 @@ fun RegistroAforoDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(Dimens.espacioChico)
             ) {
-                Button(
-                    onClick = {
-                        onGuardar(tipoGrupo, rangoEdad)
-                        mensajeExito = true
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .estiloAltoBoton(),
-                    shape = EstilosBoton.forma,
-                    colors = ButtonDefaults.buttonColors(
-                        contentColor = Blanco
-                    )
-                ) {
-                    Text("Guardar y Seguir")
+                if (mostrarBotonSeguir) {
+                    Button(
+                        onClick = {
+                            onGuardar(tipoGrupo, rangoEdad)
+                            mensajeExito = true
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .estiloAltoBoton(),
+                        shape = EstilosBoton.forma,
+                        colors = ButtonDefaults.buttonColors(
+                            contentColor = Blanco
+                        )
+                    ) {
+                        Text("Guardar y Seguir")
+                    }
                 }
 
                 Row(
@@ -112,7 +118,7 @@ fun RegistroAforoDialog(
                         modifier = Modifier.weight(1f)
                     )
 
-                    BotonSecundario(
+                    BotonPrincipal(
                         texto = "Guardar",
                         onClick = {
                             onGuardarYCerrar(tipoGrupo, rangoEdad)

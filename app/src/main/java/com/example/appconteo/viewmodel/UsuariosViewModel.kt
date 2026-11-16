@@ -9,6 +9,7 @@ import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Rol
 import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
+import com.example.appconteo.model.Utilidades
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,7 +65,8 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun iniciarSesion(correo: String, contrasena: String): Boolean {
         val usuarioEncontrado = db.buscarPorCorreo(correo)
-        if (usuarioEncontrado != null && usuarioEncontrado.contrasena == contrasena) {
+        val hashInput = Utilidades.hashContrasena(contrasena)
+        if (usuarioEncontrado != null && (usuarioEncontrado.contrasena == contrasena || usuarioEncontrado.contrasena == hashInput)) {
             _usuarioActual.value = usuarioEncontrado
             sesion.guardar(usuarioEncontrado.id)
             recargar()
@@ -107,6 +109,16 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         return true
     }
 
+    fun actualizarHistorial(idHistorial: Long, acceso: Int, tipoGrupo: String, rangoEtario: String) {
+        db.actualizarHistorial(idHistorial, acceso, tipoGrupo, rangoEtario)
+        _historial.value = db.listarHistorial()
+    }
+
+    fun eliminarHistorial(idHistorial: Long) {
+        db.eliminarHistorial(idHistorial)
+        _historial.value = db.listarHistorial()
+    }
+
     private val _turnos = MutableStateFlow(db.listarTurnos())
     val turnos: StateFlow<List<Turno>> = _turnos.asStateFlow()
 
@@ -127,8 +139,8 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun buscarPorId(id: Long): Usuario? = db.buscarPorId(id)
 
-    fun listarHistorialPorUsuarioPaginado(usuarioId: Long, nombreObservador: String, fechaFiltro: String? = null, limite: Int = 15): List<HistorialRegistros> =
-        db.listarHistorialPorUsuarioPaginado(usuarioId, nombreObservador, fechaFiltro, limite)
+    fun listarHistorialPorUsuarioPaginado(usuarioId: Long, fechaFiltro: String? = null, limite: Int = 15): List<HistorialRegistros> =
+        db.listarHistorialPorUsuarioPaginado(usuarioId, fechaFiltro, limite)
 
     fun obtenerTurnoActual(idUsuario: Long): Turno? {
         return db.obtenerTurnoActualObjeto(idUsuario, Fechas.hoy(), Fechas.horaActual())

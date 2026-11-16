@@ -115,6 +115,10 @@ fun AppNavegacion() {
                 historial = historial,
                 usuarioActual = usuarioActual,
                 turnoIdFiltro = if (turnoId > 0L) turnoId else null,
+                onAnularRegistro = { id -> usuariosViewModel.eliminarHistorial(id) },
+                onModificarRegistro = { id, acceso, grupo, edad ->
+                    usuariosViewModel.actualizarHistorial(id, acceso, grupo, edad)
+                },
                 onVolver = { navController.popBackStack() }
             )
         }

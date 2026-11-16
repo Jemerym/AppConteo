@@ -16,7 +16,7 @@ class UsuarioDbHelper(context: Context) :
 
     companion object {
         private const val NOMBRE_BD = "miregistro.db"
-        private const val VERSION_BD = 19
+        private const val VERSION_BD = 20
 
         private const val TABLA_ROLES = "roles"
         private const val ROL_ID = "id_rol"
@@ -99,9 +99,9 @@ class UsuarioDbHelper(context: Context) :
 
         private const val SQL_PRECARGAR_USUARIOS =
             "INSERT INTO $TABLA_USUARIOS ($USU_NOMBRE, $USU_CORREO, $USU_CONTRASENA, $USU_PALABRA_SECRETA, $USU_ROL) VALUES " +
-                    "('Administrador', 'admin@demo.cl', '1234', 'duoc', 1), " +
-                    "('Camila Rojas', 'camila@duocuc.cl', '123456', 'duoc', 2), " +
-                    "('Diego Muñoz', 'diego@duocuc.cl', '123456', 'duoc', 2)"
+                    "('Administrador', 'admin@demo.cl', '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', 'duoc', 1), " +
+                    "('Camila Rojas', 'camila@duocuc.cl', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'duoc', 2), " +
+                    "('Diego Muñoz', 'diego@duocuc.cl', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'duoc', 2)"
 
         private const val SQL_SELECT_USUARIOS =
             "SELECT u.*, r.$ROL_NOMBRE AS $ROL_NOMBRE " +
@@ -286,17 +286,30 @@ class UsuarioDbHelper(context: Context) :
     fun listarHistorial(): List<HistorialRegistros> =
         consultar("SELECT * FROM $TABLA_HISTORIAL ORDER BY $HIST_ID DESC", null, ::leerHistorial)
 
+    fun actualizarHistorial(idHistorial: Long, acceso: Int, tipoGrupo: String, rangoEtario: String): Int {
+        val detalle = "Tipo: $tipoGrupo, Edad: $rangoEtario"
+        val valores = ContentValues().apply {
+            put(HIST_ACCESO, acceso)
+            put(HIST_GRUPO, tipoGrupo)
+            put(HIST_RANGO, rangoEtario)
+            put(HIST_DETALLE, detalle)
+        }
+        return writableDatabase.update(TABLA_HISTORIAL, valores, "$HIST_ID = ?", arrayOf(idHistorial.toString()))
+    }
+
+    fun eliminarHistorial(idHistorial: Long): Int =
+        writableDatabase.delete(TABLA_HISTORIAL, "$HIST_ID = ?", arrayOf(idHistorial.toString()))
+
     fun listarHistorialPorTurno(idTurno: Long): List<HistorialRegistros> =
         consultar("SELECT * FROM $TABLA_HISTORIAL WHERE $HIST_TURNO_ID = ? ORDER BY $HIST_ID DESC", arrayOf(idTurno.toString()), ::leerHistorial)
 
     fun listarHistorialPorUsuarioPaginado(
         usuarioId: Long,
-        nombreObservador: String,
         fechaFiltro: String? = null,
         limite: Int = 15
     ): List<HistorialRegistros> {
-        val where = StringBuilder("($HIST_USUARIO_ID = ? OR $HIST_OBSERVADOR = ?)")
-        val args = mutableListOf(usuarioId.toString(), nombreObservador)
+        val where = StringBuilder("$HIST_USUARIO_ID = ?")
+        val args = mutableListOf(usuarioId.toString())
         if (!fechaFiltro.isNullOrBlank()) {
             where.append(" AND $HIST_FECHA LIKE ?")
             args.add("%${fechaFiltro.trim()}%")
@@ -382,7 +395,7 @@ class UsuarioDbHelper(context: Context) :
                    COALESCE(u.$USU_NOMBRE, 'Desconocido') AS observador_nombre 
             FROM $TABLA_TURNOS t
             LEFT JOIN $TABLA_USUARIOS u ON t.$TURNO_USUARIO = u.$USU_ID
-            WHERE t.$TURNO_USUARIO = ? AND t.$TURNO_FECHA = ? AND ? >= t.$TURNO_INICIO AND ? <= t.$TURNO_FIN 
+            WHERE t.$TURNO_USUARIO = ? AND t.$TURNO_FECHA = ? AND ? >= t.$TURNO_INICIO AND ? < t.$TURNO_FIN 
             LIMIT 1
         """.trimIndent()
         return consultar(sql, arrayOf(idUsuario.toString(), fechaHoy, horaActual, horaActual), ::leerTurno).firstOrNull()
