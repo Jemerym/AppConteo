@@ -1,89 +1,125 @@
 package com.example.appconteo.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import com.example.appconteo.data.UsuarioDbHelper
 import com.example.appconteo.model.RegistroUiState
+import com.example.appconteo.model.RolEnum
 import com.example.appconteo.model.Usuario
+import com.example.appconteo.model.Utilidades
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class RegistroViewModel : ViewModel() {
+class RegistroViewModel(application: Application) : AndroidViewModel(application) {
+    private val db = UsuarioDbHelper(application)
+
     private val _uiState = MutableStateFlow(RegistroUiState())
     val uiState: StateFlow<RegistroUiState> = _uiState.asStateFlow()
 
-    fun onNombreCambia(valor: String) {
-        _uiState.update { it.copy(nombre = valor, errorNombre = null, registroExitoso = false) }
+    fun onNombreCambia(nombre: String) {
+        _uiState.update { it.copy(nombre = nombre, errorNombre = null) }
     }
 
-    fun onCorreoCambia(valor: String) {
-        _uiState.update { it.copy(correo = valor.trim(), errorCorreo = null, registroExitoso = false) }
+    fun onCorreoCambia(correo: String) {
+        _uiState.update { it.copy(correo = correo, errorCorreo = null) }
     }
 
-    fun onContrasenaCambia(valor: String) {
-        _uiState.update { it.copy(contrasena = valor, errorContrasena = null, registroExitoso = false) }
+    fun onContrasenaCambia(contrasena: String) {
+        _uiState.update { it.copy(contrasena = contrasena, errorContrasena = null) }
     }
 
-    fun onConfirmarContrasenaCambia(valor: String) {
-        _uiState.update { it.copy(confirmarContrasena = valor, errorConfirmarContrasena = null, registroExitoso = false) }
+    fun onPalabraSecretaCambia(palabra: String) {
+        _uiState.update { it.copy(palabraSecreta = palabra, errorPalabraSecreta = null) }
     }
 
     fun onAlternarVisibilidad() {
         _uiState.update { it.copy(contrasenaVisible = !it.contrasenaVisible) }
     }
 
-    fun onAlternarVisibilidadConfirmacion() {
-        _uiState.update { it.copy(confirmarContrasenaVisible = !it.confirmarContrasenaVisible) }
-    }
-
-    fun onTerminosCambia(valor: Boolean) {
-        _uiState.update { it.copy(aceptaTerminos = valor, errorTerminos = null) }
+    fun onTerminosCambia(acepta: Boolean) {
+        _uiState.update { it.copy(aceptaTerminos = acepta, errorTerminos = null) }
     }
 
     fun onRegistrar(): Usuario? {
         val estado = _uiState.value
+        var valido = true
 
-        val regexNombre = Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$")
-        val errorNombre = when {
-            estado.nombre.isBlank() -> "El nombre es obligatorio"
-            !estado.nombre.matches(regexNombre) -> "El nombre solo debe contener letras"
-            else -> null
+        var errNombre: String? = null
+        var errCorreo: String? = null
+        var errContrasena: String? = null
+        var errPalabra: String? = null
+        var errTerminos: String? = null
+
+        if (estado.nombre.trim().isEmpty()) {
+            errNombre = "El nombre es obligatorio"
+            valido = false
         }
 
-        val errorCorreo = if (!estado.correo.contains("@") || !estado.correo.contains("."))
-            "Ingresa un correo válido (demo@duocuc.cl)" else null
-
-        val regexContrasena = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#\$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>?]).{8,}\$")
-        val errorContrasena = if (!estado.contrasena.matches(regexContrasena))
-            "Minimo 8 caracteres y debe contener una Mayuscula, una Minuscula, un Numero y un Caracter Especial" else null
-
-        val errorConfirmarContrasena = when {
-            estado.confirmarContrasena.isBlank() -> "Confirma tu contraseña"
-            estado.confirmarContrasena != estado.contrasena -> "Las contraseñas no coinciden"
-            else -> null
+        val correoLimpio = estado.correo.trim()
+        if (correoLimpio.isEmpty() || !Utilidades.esCorreoValido(correoLimpio)) {
+            errCorreo = "Ingresa un correo válido"
+            valido = false
+        } else if (db.buscarPorCorreo(correoLimpio) != null) {
+            errCorreo = "Este correo ya se encuentra registrado"
+            valido = false
         }
 
-        val errorTerminos = if (!estado.aceptaTerminos)
-            "Debes aceptar los términos" else null
-
-        val hayErrores = listOf(errorNombre, errorCorreo, errorContrasena, errorConfirmarContrasena, errorTerminos)
-            .any { it != null }
-
-        _uiState.update {
-            it.copy(
-                errorNombre = errorNombre,
-                errorCorreo = errorCorreo,
-                errorContrasena = errorContrasena,
-                errorConfirmarContrasena = errorConfirmarContrasena,
-                errorTerminos = errorTerminos,
-                registroExitoso = !hayErrores
-            )
+        if (!estado.contrasenaValida) {
+            errContrasena = "La contraseña debe cumplir todos los requisitos de seguridad"
+            valido = false
         }
 
-        return if (hayErrores) null else Usuario(estado.nombre, estado.correo, contrasena = estado.contrasena)
+        if (estado.palabraSecreta.trim().isEmpty()) {
+            errPalabra = "La palabra secreta es obligatoria"
+            valido = false
+        }
+
+        if (!estado.aceptaTerminos) {
+            errTerminos = "Debes aceptar los términos y condiciones"
+            valido = false
+        }
+
+        if (!valido) {
+            _uiState.update {
+                it.copy(
+                    errorNombre = errNombre,
+                    errorCorreo = errCorreo,
+                    errorContrasena = errContrasena,
+                    errorPalabraSecreta = errPalabra,
+                    errorTerminos = errTerminos
+                )
+            }
+            return null
+        }
+
+        val nuevoUsuario = Usuario(
+            nombre = estado.nombre.trim(),
+            correo = correoLimpio,
+            contrasena = estado.contrasena.trim(),
+            palabraSecreta = estado.palabraSecreta.trim(),
+            rolId = RolEnum.OBSERVADOR.id,
+            rolNombre = RolEnum.OBSERVADOR.nombre
+        )
+
+        val idInsertado = db.insertarUsuario(nuevoUsuario)
+        if (idInsertado == -1L) {
+            _uiState.update { it.copy(errorCorreo = "Error al guardar el usuario en la base de datos") }
+            return null
+        }
+
+        val usuarioConId = nuevoUsuario.copy(id = idInsertado)
+        _uiState.update { it.copy(registroExitoso = true) }
+        return usuarioConId
     }
 
     fun onLimpiar() {
         _uiState.value = RegistroUiState()
+    }
+
+    override fun onCleared() {
+        db.close()
+        super.onCleared()
     }
 }
