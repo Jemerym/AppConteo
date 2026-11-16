@@ -1,5 +1,6 @@
 package com.example.appconteo.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.R
@@ -43,9 +45,8 @@ fun RegistroScreen(
         onNombreCambia = viewModel::onNombreCambia,
         onCorreoCambia = viewModel::onCorreoCambia,
         onContrasenaCambia = viewModel::onContrasenaCambia,
-        onConfirmarContrasenaCambia = viewModel::onConfirmarContrasenaCambia,
+        onPalabraSecretaCambia = viewModel::onPalabraSecretaCambia,
         onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
-        onAlternarVisibilidadConfirmacion = viewModel::onAlternarVisibilidadConfirmacion,
         onTerminosCambia = viewModel::onTerminosCambia,
         onRegistrar = { viewModel.onRegistrar()?.let { usuario -> onRegistroExitoso(usuario) } },
         onLimpiar = viewModel::onLimpiar,
@@ -60,9 +61,8 @@ fun RegistroContent(
     onNombreCambia: (String) -> Unit,
     onCorreoCambia: (String) -> Unit,
     onContrasenaCambia: (String) -> Unit,
-    onConfirmarContrasenaCambia: (String) -> Unit,
+    onPalabraSecretaCambia: (String) -> Unit,
     onAlternarVisibilidad: () -> Unit,
-    onAlternarVisibilidadConfirmacion: () -> Unit,
     onTerminosCambia: (Boolean) -> Unit,
     onRegistrar: () -> Unit,
     onLimpiar: () -> Unit,
@@ -83,7 +83,6 @@ fun RegistroContent(
         ) {
             Spacer(Modifier.height(Dimens.espacioGrande))
 
-            // Título centrado idéntico al Login
             Text(
                 text = stringResource(R.string.titulo_formulario),
                 style = MaterialTheme.typography.headlineLarge,
@@ -105,6 +104,7 @@ fun RegistroContent(
                         icono = R.drawable.ic_persona,
                         error = uiState.errorNombre
                     )
+
                     CampoTexto(
                         valor = uiState.correo,
                         onValorCambia = onCorreoCambia,
@@ -113,6 +113,7 @@ fun RegistroContent(
                         error = uiState.errorCorreo,
                         tipoTeclado = KeyboardType.Email
                     )
+
                     CampoContrasena(
                         valor = uiState.contrasena,
                         onValorCambia = onContrasenaCambia,
@@ -121,13 +122,18 @@ fun RegistroContent(
                         onAlternarVisible = onAlternarVisibilidad,
                         error = uiState.errorContrasena
                     )
-                    CampoContrasena(
-                        valor = uiState.confirmarContrasena,
-                        onValorCambia = onConfirmarContrasenaCambia,
-                        etiqueta = stringResource(R.string.campo_confirmar_contrasena),
-                        visible = uiState.confirmarContrasenaVisible,
-                        onAlternarVisible = onAlternarVisibilidadConfirmacion,
-                        error = uiState.errorConfirmarContrasena
+
+                    // Indicadores dinámicos de requisitos de contraseña en tiempo real
+                    AnimatedVisibility(visible = uiState.contrasena.isNotEmpty()) {
+                        IndicadoresContrasena(uiState = uiState)
+                    }
+
+                    CampoTexto(
+                        valor = uiState.palabraSecreta,
+                        onValorCambia = onPalabraSecretaCambia,
+                        etiqueta = "Palabra Secreta",
+                        icono = R.drawable.ic_candado,
+                        error = uiState.errorPalabraSecreta
                     )
                 }
 
@@ -190,6 +196,34 @@ fun RegistroContent(
 }
 
 @Composable
+private fun IndicadoresContrasena(uiState: RegistroUiState) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = Dimens.espacioMini),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text("Requisitos de contraseña:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+
+        FilaCriterio(cumple = uiState.tieneMinimo8, texto = "Mínimo 8 caracteres")
+        FilaCriterio(cumple = uiState.tieneMayuscula, texto = "Al menos 1 mayúscula (A-Z)")
+        FilaCriterio(cumple = uiState.tieneNumero, texto = "Al menos 1 número (0-9)")
+        FilaCriterio(cumple = uiState.tieneSimbolo, texto = "Al menos 1 símbolo (@#$%)")
+    }
+}
+
+@Composable
+private fun FilaCriterio(cumple: Boolean, texto: String) {
+    val color = if (cumple) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val icono = if (cumple) "✓ " else "✗ "
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(text = icono, color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+        Text(text = texto, color = color, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
 private fun MensajeExito(nombre: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -221,8 +255,8 @@ private fun RegistroVacioPreview() {
         RegistroContent(
             uiState = RegistroUiState(),
             onNombreCambia = {}, onCorreoCambia = {}, onContrasenaCambia = {},
-            onConfirmarContrasenaCambia = {},
-            onAlternarVisibilidad = {}, onAlternarVisibilidadConfirmacion = {},
+            onPalabraSecretaCambia = {},
+            onAlternarVisibilidad = {},
             onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {},
             onIrLogin = {}
         )
@@ -238,13 +272,13 @@ private fun RegistroConErroresPreview() {
                 correo = "ana@",
                 errorNombre = "El nombre es obligatorio",
                 errorCorreo = "Ingresa un correo válido",
-                errorContrasena = "Mínimo 6 caracteres",
-                errorConfirmarContrasena = "Las contraseñas no coinciden",
+                errorContrasena = "La contraseña no cumple los requisitos",
+                errorPalabraSecreta = "La palabra secreta es obligatoria",
                 errorTerminos = "Debes aceptar los términos"
             ),
             onNombreCambia = {}, onCorreoCambia = {}, onContrasenaCambia = {},
-            onConfirmarContrasenaCambia = {},
-            onAlternarVisibilidad = {}, onAlternarVisibilidadConfirmacion = {},
+            onPalabraSecretaCambia = {},
+            onAlternarVisibilidad = {},
             onTerminosCambia = {}, onRegistrar = {}, onLimpiar = {},
             onIrLogin = {}
         )

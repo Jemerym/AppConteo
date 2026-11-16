@@ -8,26 +8,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.appconteo.model.RangoEtario
+import com.example.appconteo.model.TipoCompania
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
 import com.example.appconteo.ui.components.BotonSecundario
 import com.example.appconteo.ui.style.EstilosBoton
 import com.example.appconteo.ui.style.estiloAltoBoton
 import com.example.appconteo.ui.theme.Blanco
-@OptIn(ExperimentalMaterial3Api::class)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegistroAforoDialog(
     onDismiss: () -> Unit,
-    onGuardar: ( tipo: String, rangoEdad: String) -> Unit,
-    onGuardarYCerrar: ( tipo: String, rangoEdad: String) -> Unit
+    onGuardar: (tipo: String, rangoEdad: String) -> Unit,
+    onGuardarYCerrar: (tipo: String, rangoEdad: String) -> Unit
 ) {
-    var tipoGrupo by remember { mutableStateOf("Solo") }
-    var rangoEdad by remember { mutableStateOf("25-34") }
+    var tipoGrupo by remember { mutableStateOf(TipoCompania.SOLO.etiqueta) }
+    var rangoEdad by remember { mutableStateOf(RangoEtario.EDAD_25_34.etiqueta) }
     var mensajeExito by remember { mutableStateOf(false) }
 
-    val tipos = listOf("Solo", "Acompañado", "Grupo (3+)")
-    val edades = listOf("< 18", "18-24", "25-34", "35-50", "+ 50")
+    val tipos = TipoCompania.entries
+    val edades = RangoEtario.entries
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -37,7 +39,6 @@ fun RegistroAforoDialog(
                 verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio),
                 modifier = Modifier.fillMaxWidth()
             ) {
-
                 Text("Tipo de grupo:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -45,9 +46,9 @@ fun RegistroAforoDialog(
                 ) {
                     tipos.forEach { tipo ->
                         FilterChip(
-                            selected = tipoGrupo == tipo,
-                            onClick = { tipoGrupo = tipo },
-                            label = { Text(tipo, style = MaterialTheme.typography.labelSmall) }
+                            selected = tipoGrupo == tipo.etiqueta,
+                            onClick = { tipoGrupo = tipo.etiqueta },
+                            label = { Text(tipo.etiqueta, style = MaterialTheme.typography.labelSmall) }
                         )
                     }
                 }
@@ -61,9 +62,9 @@ fun RegistroAforoDialog(
                         ) {
                             fila.forEach { edad ->
                                 FilterChip(
-                                    selected = rangoEdad == edad,
-                                    onClick = { rangoEdad = edad },
-                                    label = { Text(edad) }
+                                    selected = rangoEdad == edad.etiqueta,
+                                    onClick = { rangoEdad = edad.etiqueta },
+                                    label = { Text(edad.etiqueta) }
                                 )
                             }
                         }
@@ -112,9 +113,9 @@ fun RegistroAforoDialog(
                     )
 
                     BotonSecundario(
-                        texto = "Guardar ",
+                        texto = "Guardar",
                         onClick = {
-                            onGuardarYCerrar( tipoGrupo, rangoEdad)
+                            onGuardarYCerrar(tipoGrupo, rangoEdad)
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -137,7 +138,7 @@ private fun AforoDialogPreview() {
             RegistroAforoDialog(
                 onDismiss = {},
                 onGuardar = { _, _ -> },
-                onGuardarYCerrar = {_,_ -> }
+                onGuardarYCerrar = { _, _ -> }
             )
         }
     }
