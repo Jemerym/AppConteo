@@ -1,6 +1,5 @@
 package com.example.appconteo.ui.screens
 
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,7 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -30,9 +28,9 @@ import com.example.appconteo.viewmodel.UsuariosViewModel
 fun LoginScreen(
     onLoginExitoso: () -> Unit,
     onIrRegistro: () -> Unit,
+    onIrRecuperarClave: () -> Unit = {},
     usuariosViewModel: UsuariosViewModel = viewModel(),
     viewModel: LoginViewModel = viewModel()
-
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -49,8 +47,8 @@ fun LoginScreen(
                 onLoginExitoso()
             }
         },
-
         onIrRegistro = onIrRegistro,
+        onIrRecuperarClave = onIrRecuperarClave,
         snackbarHostState = snackbarHostState
     )
 }
@@ -63,6 +61,7 @@ fun LoginContent(
     onAlternarVisibilidad: () -> Unit,
     onLogin: () -> Unit,
     onIrRegistro: () -> Unit,
+    onIrRecuperarClave: () -> Unit = {},
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     Scaffold(
@@ -108,7 +107,18 @@ fun LoginContent(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(Modifier.height(Dimens.espacioGrande))
+            TextButton(
+                onClick = onIrRecuperarClave,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(
+                    text = "¿Olvidaste tu contraseña?",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(Modifier.height(Dimens.espacioMedio))
 
             BotonPrincipal(
                 texto = stringResource(R.string.btn_iniciar_sesion),

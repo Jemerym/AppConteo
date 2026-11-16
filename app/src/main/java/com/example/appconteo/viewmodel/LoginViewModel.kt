@@ -1,16 +1,14 @@
 package com.example.appconteo.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import com.example.appconteo.data.UsuarioDbHelper
+import androidx.lifecycle.ViewModel
 import com.example.appconteo.model.LoginUiState
+import com.example.appconteo.model.Utilidades
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class LoginViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = UsuarioDbHelper(application)
+class LoginViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -31,7 +29,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         val estado = _uiState.value
         val errorCorreo = when {
             estado.correo.isBlank() -> "El correo es obligatorio"
-            !estado.correo.contains("@") || !estado.correo.contains(".") -> "Ingresa un correo válido (ej: usuario@duocuc.cl)"
+            !Utilidades.esCorreoValido(estado.correo) -> "Ingresa un correo válido (ej: usuario@duocuc.cl)"
             else -> null
         }
         val errorContrasena = if (estado.contrasena.isBlank()) "La contraseña es obligatoria" else null
@@ -56,10 +54,5 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             }
             return false
         }
-    }
-
-    override fun onCleared() {
-        db.close()
-        super.onCleared()
     }
 }

@@ -27,7 +27,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.R
 import com.example.appconteo.data.ConvertidorImagen
-import com.example.appconteo.model.*
+import com.example.appconteo.model.CatalogosRincon
+import com.example.appconteo.model.Fechas
+import com.example.appconteo.model.ProgramarUiState
+import com.example.appconteo.model.Usuario
 import com.example.appconteo.ui.components.BotonPrincipal
 import com.example.appconteo.ui.components.TarjetaSeccion
 import com.example.appconteo.ui.style.EstilosCampo
@@ -35,22 +38,25 @@ import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
 import com.example.appconteo.viewmodel.ProgramarViewModel
 import com.example.appconteo.viewmodel.UsuariosViewModel
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 
 @Composable
 fun ProgramarScreen(
     usuariosViewModel: UsuariosViewModel = viewModel(),
     programarViewModel: ProgramarViewModel = viewModel(),
+    turnoId: Long = 0L,
     onVolver: () -> Unit,
     onSesionProgramada: () -> Unit
 ) {
-
     val context = LocalContext.current
     val usuarios by usuariosViewModel.usuarios.collectAsStateWithLifecycle()
     val observadores = remember(usuarios) { usuarios.filter { it.rolId != 1L } }
     val uiState by programarViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(turnoId) {
+        if (turnoId > 0L) {
+            programarViewModel.cargarTurno(turnoId)
+        }
+    }
 
     LaunchedEffect(observadores) {
         if (uiState.observadorSeleccionado == null) {
@@ -60,7 +66,8 @@ fun ProgramarScreen(
 
     LaunchedEffect(uiState.asignacionExitosa) {
         if (uiState.asignacionExitosa) {
-            Toast.makeText(context, "✅ Turno asignado con éxito", Toast.LENGTH_SHORT).show()
+            val mensaje = if (uiState.esEdicion) "✅ Turno actualizado con éxito" else "✅ Turno asignado con éxito"
+            Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
             onSesionProgramada()
         }
     }
@@ -95,17 +102,14 @@ fun ProgramarContent(
     val tramosHorarios = remember { CatalogosRincon.tramosHorarios }
     val accesosInfo = remember { CatalogosRincon.accesosInfo }
 
-    val fechaCalculada = remember(uiState.diasOffset) {
-        val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, uiState.diasOffset) }
-        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
-    }
+    val fechaCalculada = remember(uiState.diasOffset) { Fechas.conOffset(uiState.diasOffset) }
 
     LaunchedEffect(uiState.mensajeError) {
         uiState.mensajeError?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
     }
 
     Scaffold(
-        topBar = { ProgramarTopBar(onVolver) },
+        topBar = { ProgramarTopBar(uiState.esEdicion, onVolver) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
@@ -123,7 +127,7 @@ fun ProgramarContent(
             ResumenTurnoCard(uiState.observadorSeleccionado, accesosInfo, uiState.accesoSeleccionado, fechaCalculada, uiState.tramoSeleccionado)
 
             BotonPrincipal(
-                texto = "Confirmar y Asignar Turno",
+                texto = if (uiState.esEdicion) "Guardar Cambios" else "Confirmar y Asignar Turno",
                 onClick = onProgramar,
                 icono = R.drawable.ic_check,
                 modifier = Modifier.fillMaxWidth()
@@ -134,9 +138,9 @@ fun ProgramarContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProgramarTopBar(onVolver: () -> Unit) {
+private fun ProgramarTopBar(esEdicion: Boolean, onVolver: () -> Unit) {
     TopAppBar(
-        title = { Text("Asignar Turno de Guardia", fontWeight = FontWeight.Bold) },
+        title = { Text(if (esEdicion) "Modificar Turno" else "Asignar Turno de Guardia", fontWeight = FontWeight.Bold) },
         navigationIcon = {
             IconButton(onClick = onVolver) {
                 Icon(painterResource(R.drawable.ic_volver), contentDescription = "Volver")
