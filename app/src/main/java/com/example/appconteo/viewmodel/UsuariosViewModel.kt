@@ -4,20 +4,18 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.example.appconteo.data.SesionPreferencias
 import com.example.appconteo.data.UsuarioDbHelper
+import com.example.appconteo.model.Fechas
 import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Rol
+import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class UsuariosViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = UsuarioDbHelper(application)
-
     private val sesion = SesionPreferencias(application)
 
     private val _filtro = MutableStateFlow("")
@@ -59,20 +57,14 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         sesion.borrar()
     }
 
-
     override fun onCleared() {
         db.close()
         super.onCleared()
     }
-    fun registrar(usuario: Usuario) {
-        db.insertarUsuario(usuario)
-        recargar()
-    }
+
     fun iniciarSesion(correo: String, contrasena: String): Boolean {
-        val usuarioEncontrado = db.listarUsuarios().find {
-            it.correo.equals(correo.trim(), ignoreCase = true) && it.contrasena == contrasena
-        }
-        if (usuarioEncontrado != null) {
+        val usuarioEncontrado = db.buscarPorCorreo(correo)
+        if (usuarioEncontrado != null && usuarioEncontrado.contrasena == contrasena) {
             _usuarioActual.value = usuarioEncontrado
             sesion.guardar(usuarioEncontrado.id)
             recargar()
@@ -84,12 +76,61 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     fun recargarUsuarioActual() {
         _usuarioActual.value = db.buscarPorId(sesion.leer())
     }
+
     private val _historial = MutableStateFlow(db.listarHistorial())
     val historial: StateFlow<List<HistorialRegistros>> = _historial.asStateFlow()
 
-    fun registrarEnHistorial(observadorNombre: String, tipo: String, detalle: String) {
-        val horaActual = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-        db.insertarHistorial(observadorNombre, tipo, detalle, horaActual)
+    fun registrarEnHistorial(
+        observadorNombre: String,
+        tipo: String,
+        acceso: Int = 1,
+        idTurno: Long = 0,
+        usuarioId: Long = 0,
+        tipoGrupo: String = "Solo",
+        rangoEtario: String = "25-34",
+        codigoBoleta: String? = null
+    ): Boolean {
+        val horaActual = Fechas.horaActual()
+        val resultado = db.insertarHistorial(
+            observador = observadorNombre,
+            tipo = tipo,
+            acceso = acceso,
+            idTurno = idTurno,
+            usuarioId = usuarioId,
+            tipoGrupo = tipoGrupo,
+            rangoEtario = rangoEtario,
+            hora = horaActual,
+            codigoBoleta = codigoBoleta
+        )
+        if (resultado == -1L) return false
         _historial.value = db.listarHistorial()
+        return true
+    }
+
+    private val _turnos = MutableStateFlow(db.listarTurnos())
+    val turnos: StateFlow<List<Turno>> = _turnos.asStateFlow()
+
+    fun recargarTurnos() {
+        _turnos.value = db.listarTurnos()
+    }
+
+    fun eliminarTurno(idTurno: Long) {
+        db.eliminarTurno(idTurno)
+        recargarTurnos()
+    }
+
+
+    fun recuperarClave(correo: String, palabraSecreta: String): String? {
+        val usuarioEncontrado = db.buscarPorCorreoYPalabra(correo, palabraSecreta)
+        return usuarioEncontrado?.contrasena
+    }
+
+    fun buscarPorId(id: Long): Usuario? = db.buscarPorId(id)
+
+    fun listarHistorialPorUsuarioPaginado(usuarioId: Long, nombreObservador: String, fechaFiltro: String? = null, limite: Int = 15): List<HistorialRegistros> =
+        db.listarHistorialPorUsuarioPaginado(usuarioId, nombreObservador, fechaFiltro, limite)
+
+    fun obtenerTurnoActual(idUsuario: Long): Turno? {
+        return db.obtenerTurnoActualObjeto(idUsuario, Fechas.hoy(), Fechas.horaActual())
     }
 }

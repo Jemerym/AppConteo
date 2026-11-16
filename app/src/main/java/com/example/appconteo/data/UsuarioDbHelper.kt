@@ -5,20 +5,18 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import android.icu.text.SimpleDateFormat
+import com.example.appconteo.model.Fechas
 import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Rol
 import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
-import java.util.Date
-import java.util.Locale
 
 class UsuarioDbHelper(context: Context) :
     SQLiteOpenHelper(context, NOMBRE_BD, null, VERSION_BD) {
 
     companion object {
         private const val NOMBRE_BD = "miregistro.db"
-        private const val VERSION_BD = 16
+        private const val VERSION_BD = 19
 
         private const val TABLA_ROLES = "roles"
         private const val ROL_ID = "id_rol"
@@ -42,6 +40,7 @@ class UsuarioDbHelper(context: Context) :
         private const val HIST_USUARIO_ID = "id_usuario"
         private const val HIST_GRUPO = "tipo_grupo"
         private const val HIST_RANGO = "rango_etario"
+        private const val HIST_CODIGO = "codigo_boleta"
         private const val HIST_DETALLE = "detalle"
         private const val HIST_HORA = "hora"
         private const val HIST_FECHA = "fecha"
@@ -79,6 +78,7 @@ class UsuarioDbHelper(context: Context) :
                     "$HIST_USUARIO_ID INTEGER REFERENCES $TABLA_USUARIOS($USU_ID) ON DELETE SET NULL, " +
                     "$HIST_GRUPO TEXT NOT NULL DEFAULT 'Solo', " +
                     "$HIST_RANGO TEXT NOT NULL DEFAULT '25-34', " +
+                    "$HIST_CODIGO TEXT, " +
                     "$HIST_DETALLE TEXT NOT NULL, " +
                     "$HIST_FECHA TEXT NOT NULL, " +
                     "$HIST_HORA TEXT NOT NULL)"
@@ -120,6 +120,7 @@ class UsuarioDbHelper(context: Context) :
         db.execSQL(SQL_PRECARGAR_ROLES)
         db.execSQL(SQL_PRECARGAR_USUARIOS)
         db.execSQL(SQL_CREAR_HISTORIAL)
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_codigo ON $TABLA_HISTORIAL($HIST_CODIGO)")
         db.execSQL(SQL_CREAR_TURNOS)
     }
 
@@ -130,6 +131,8 @@ class UsuarioDbHelper(context: Context) :
         db.execSQL("DROP TABLE IF EXISTS $TABLA_TURNOS")
         onCreate(db)
     }
+
+    // --- CURSOR HELPERS & GENERIC CONSULTA ---
     private fun Cursor.entero(col: String): Int = getInt(getColumnIndexOrThrow(col))
     private fun Cursor.largo(col: String): Long = getLong(getColumnIndexOrThrow(col))
     private fun Cursor.texto(col: String): String = getString(getColumnIndexOrThrow(col))
@@ -141,6 +144,7 @@ class UsuarioDbHelper(context: Context) :
         val i = getColumnIndexOrThrow(col)
         return if (isNull(i)) null else getBlob(i)
     }
+
     private fun <T> consultar(sql: String, args: Array<String>? = null, mapeador: (Cursor) -> T): List<T> {
         val lista = mutableListOf<T>()
         readableDatabase.rawQuery(sql, args).use { c ->
@@ -150,6 +154,8 @@ class UsuarioDbHelper(context: Context) :
         }
         return lista
     }
+
+    // --- MAPPERS (CONVERTIDORES) ---
     private fun leerRol(c: Cursor) = Rol(
         id = c.largo(ROL_ID),
         nombre = c.texto(ROL_NOMBRE)
@@ -175,6 +181,7 @@ class UsuarioDbHelper(context: Context) :
         usuarioId = c.largo(HIST_USUARIO_ID),
         tipoGrupo = c.texto(HIST_GRUPO),
         rangoEtario = c.texto(HIST_RANGO),
+        codigoBoleta = c.textoONulo(HIST_CODIGO),
         fecha = c.texto(HIST_FECHA),
         hora = c.texto(HIST_HORA)
     )
@@ -182,7 +189,7 @@ class UsuarioDbHelper(context: Context) :
     private fun leerTurno(c: Cursor) = Turno(
         id = c.largo(TURNO_ID),
         usuarioId = c.largo(TURNO_USUARIO),
-        observadorNombre = c.texto("observador_nombre"),
+        observadorNombre = c.textoONulo("observador_nombre") ?: "Desconocido",
         acceso = c.entero(TURNO_ACCESO),
         horaInicio = c.texto(TURNO_INICIO),
         horaFin = c.texto(TURNO_FIN),
@@ -212,11 +219,11 @@ class UsuarioDbHelper(context: Context) :
         consultar("$SQL_SELECT_USUARIOS WHERE u.$USU_ID = ?", arrayOf(id.toString()), ::leerUsuario).firstOrNull()
 
     fun buscarPorCorreo(correo: String): Usuario? =
-        consultar("$SQL_SELECT_USUARIOS WHERE u.$USU_CORREO = ?", arrayOf(correo.trim()), ::leerUsuario).firstOrNull()
+        consultar("$SQL_SELECT_USUARIOS WHERE u.$USU_CORREO = ? COLLATE NOCASE", arrayOf(correo.trim()), ::leerUsuario).firstOrNull()
 
     fun buscarPorCorreoYPalabra(correo: String, palabraSecreta: String): Usuario? =
         consultar(
-            "$SQL_SELECT_USUARIOS WHERE u.$USU_CORREO = ? AND u.$USU_PALABRA_SECRETA = ?",
+            "$SQL_SELECT_USUARIOS WHERE u.$USU_CORREO = ? COLLATE NOCASE AND u.$USU_PALABRA_SECRETA = ?",
             arrayOf(correo.trim(), palabraSecreta.trim()),
             ::leerUsuario
         ).firstOrNull()
@@ -239,9 +246,20 @@ class UsuarioDbHelper(context: Context) :
         put(USU_PALABRA_SECRETA, usuario.palabraSecreta)
         put(USU_ROL, usuario.rolId)
     }
-    fun insertarHistorial(observador: String, tipo: String, acceso: Int = 1, idTurno: Long = 0, usuarioId: Long = 0, tipoGrupo: String = "Solo", rangoEtario: String = "25-34", hora: String
+
+    // --- OPERACIONES DE HISTORIAL ---
+    fun insertarHistorial(
+        observador: String,
+        tipo: String,
+        acceso: Int = 1,
+        idTurno: Long = 0,
+        usuarioId: Long = 0,
+        tipoGrupo: String = "Solo",
+        rangoEtario: String = "25-34",
+        hora: String,
+        codigoBoleta: String? = null
     ): Long {
-        val fechaActual = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val fechaActual = Fechas.hoy()
         val detalle = "Tipo: $tipoGrupo, Edad: $rangoEtario"
         val valores = ContentValues().apply {
             put(HIST_OBSERVADOR, observador)
@@ -251,6 +269,7 @@ class UsuarioDbHelper(context: Context) :
             put(HIST_USUARIO_ID, if (usuarioId > 0) usuarioId else null)
             put(HIST_GRUPO, tipoGrupo)
             put(HIST_RANGO, rangoEtario)
+            put(HIST_CODIGO, codigoBoleta?.trim())
             put(HIST_DETALLE, detalle)
             put(HIST_FECHA, fechaActual)
             put(HIST_HORA, hora)
@@ -258,23 +277,38 @@ class UsuarioDbHelper(context: Context) :
         return writableDatabase.insert(TABLA_HISTORIAL, null, valores)
     }
 
+    fun existeBoleta(codigo: String): Boolean =
+        consultar(
+            "SELECT 1 FROM $TABLA_HISTORIAL WHERE $HIST_CODIGO = ? LIMIT 1",
+            arrayOf(codigo.trim())
+        ) { 1 }.isNotEmpty()
+
     fun listarHistorial(): List<HistorialRegistros> =
         consultar("SELECT * FROM $TABLA_HISTORIAL ORDER BY $HIST_ID DESC", null, ::leerHistorial)
 
-    fun listarHistorialPorObservador(
+    fun listarHistorialPorTurno(idTurno: Long): List<HistorialRegistros> =
+        consultar("SELECT * FROM $TABLA_HISTORIAL WHERE $HIST_TURNO_ID = ? ORDER BY $HIST_ID DESC", arrayOf(idTurno.toString()), ::leerHistorial)
+
+    fun listarHistorialPorUsuarioPaginado(
+        usuarioId: Long,
         nombreObservador: String,
-        fechaFiltro: String? = null
+        fechaFiltro: String? = null,
+        limite: Int = 15
     ): List<HistorialRegistros> {
-        val where = StringBuilder("$HIST_OBSERVADOR = ?")
-        val args = mutableListOf(nombreObservador)
+        val where = StringBuilder("($HIST_USUARIO_ID = ? OR $HIST_OBSERVADOR = ?)")
+        val args = mutableListOf(usuarioId.toString(), nombreObservador)
         if (!fechaFiltro.isNullOrBlank()) {
-            where.append(" AND $HIST_FECHA = ?")
-            args.add(fechaFiltro)
+            where.append(" AND $HIST_FECHA LIKE ?")
+            args.add("%${fechaFiltro.trim()}%")
         }
-        val query = "SELECT * FROM $TABLA_HISTORIAL WHERE $where ORDER BY $HIST_ID DESC LIMIT 15 OFFSET 15"
+        val query = "SELECT * FROM $TABLA_HISTORIAL WHERE $where ORDER BY $HIST_ID DESC LIMIT ?"
+        args.add(limite.toString())
         return consultar(query, args.toTypedArray(), ::leerHistorial)
     }
 
+
+
+    // --- OPERACIONES DE TURNOS ---
     fun insertarTurno(idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Long {
         val valores = ContentValues().apply {
             put(TURNO_USUARIO, idUsuario)
@@ -290,31 +324,81 @@ class UsuarioDbHelper(context: Context) :
         }
     }
 
-    fun haySolapamientoTurno(idUsuario: Long, acceso: Int, fecha: String, inicio: String, fin: String): Boolean {
+    fun haySolapamientoTurno(idUsuario: Long, acceso: Int, fecha: String, inicio: String, fin: String, excluirIdTurno: Long = 0L): Boolean {
         val sql = """
             SELECT 1 FROM $TABLA_TURNOS 
             WHERE $TURNO_FECHA = ? 
             AND $TURNO_INICIO < ? AND $TURNO_FIN > ? 
             AND ($TURNO_USUARIO = ? OR $TURNO_ACCESO = ?)
+            AND $TURNO_ID != ?
             LIMIT 1
         """.trimIndent()
 
-        return consultar(sql, arrayOf(fecha, fin, inicio, idUsuario.toString(), acceso.toString())) { true }.isNotEmpty()
+        return consultar(sql, arrayOf(fecha, fin, inicio, idUsuario.toString(), acceso.toString(), excluirIdTurno.toString())) { true }.isNotEmpty()
+    }
+
+    fun buscarTurnoPorId(idTurno: Long): Turno? {
+        val sql = """
+            SELECT t.$TURNO_ID AS $TURNO_ID, 
+                   t.$TURNO_USUARIO AS $TURNO_USUARIO, 
+                   t.$TURNO_ACCESO AS $TURNO_ACCESO, 
+                   t.$TURNO_INICIO AS $TURNO_INICIO, 
+                   t.$TURNO_FIN AS $TURNO_FIN, 
+                   t.$TURNO_FECHA AS $TURNO_FECHA, 
+                   COALESCE(u.$USU_NOMBRE, 'Desconocido') AS observador_nombre 
+            FROM $TABLA_TURNOS t
+            LEFT JOIN $TABLA_USUARIOS u ON t.$TURNO_USUARIO = u.$USU_ID
+            WHERE t.$TURNO_ID = ?
+        """.trimIndent()
+        return consultar(sql, arrayOf(idTurno.toString()), ::leerTurno).firstOrNull()
     }
 
     fun listarTurnos(): List<Turno> {
         val sql = """
-            SELECT t.*, u.$USU_NOMBRE AS observador_nombre 
+            SELECT t.$TURNO_ID AS $TURNO_ID, 
+                   t.$TURNO_USUARIO AS $TURNO_USUARIO, 
+                   t.$TURNO_ACCESO AS $TURNO_ACCESO, 
+                   t.$TURNO_INICIO AS $TURNO_INICIO, 
+                   t.$TURNO_FIN AS $TURNO_FIN, 
+                   t.$TURNO_FECHA AS $TURNO_FECHA, 
+                   COALESCE(u.$USU_NOMBRE, 'Desconocido') AS observador_nombre 
             FROM $TABLA_TURNOS t
-            INNER JOIN $TABLA_USUARIOS u ON t.$TURNO_USUARIO = u.$USU_ID
+            LEFT JOIN $TABLA_USUARIOS u ON t.$TURNO_USUARIO = u.$USU_ID
             ORDER BY t.$TURNO_ID DESC
         """.trimIndent()
         return consultar(sql, null, ::leerTurno)
     }
 
-    fun obtenerAccesoActualObservador(idUsuario: Long, horaActual: String): Int {
-        val sql = "SELECT $TURNO_ACCESO FROM $TABLA_TURNOS WHERE $TURNO_USUARIO = ? AND ? >= $TURNO_INICIO AND ? <= $TURNO_FIN"
-        val resultados = consultar(sql, arrayOf(idUsuario.toString(), horaActual, horaActual)) { c -> c.entero(TURNO_ACCESO) }
-        return resultados.firstOrNull() ?: -1
+
+
+    fun obtenerTurnoActualObjeto(idUsuario: Long, fechaHoy: String, horaActual: String): Turno? {
+        val sql = """
+            SELECT t.$TURNO_ID AS $TURNO_ID, 
+                   t.$TURNO_USUARIO AS $TURNO_USUARIO, 
+                   t.$TURNO_ACCESO AS $TURNO_ACCESO, 
+                   t.$TURNO_INICIO AS $TURNO_INICIO, 
+                   t.$TURNO_FIN AS $TURNO_FIN, 
+                   t.$TURNO_FECHA AS $TURNO_FECHA, 
+                   COALESCE(u.$USU_NOMBRE, 'Desconocido') AS observador_nombre 
+            FROM $TABLA_TURNOS t
+            LEFT JOIN $TABLA_USUARIOS u ON t.$TURNO_USUARIO = u.$USU_ID
+            WHERE t.$TURNO_USUARIO = ? AND t.$TURNO_FECHA = ? AND ? >= t.$TURNO_INICIO AND ? <= t.$TURNO_FIN 
+            LIMIT 1
+        """.trimIndent()
+        return consultar(sql, arrayOf(idUsuario.toString(), fechaHoy, horaActual, horaActual), ::leerTurno).firstOrNull()
+    }
+
+    fun eliminarTurno(idTurno: Long): Int =
+        writableDatabase.delete(TABLA_TURNOS, "$TURNO_ID = ?", arrayOf(idTurno.toString()))
+
+    fun actualizarTurno(idTurno: Long, idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Int {
+        val valores = ContentValues().apply {
+            put(TURNO_USUARIO, idUsuario)
+            put(TURNO_ACCESO, acceso)
+            put(TURNO_INICIO, horaInicio)
+            put(TURNO_FIN, horaFin)
+            put(TURNO_FECHA, fecha)
+        }
+        return writableDatabase.update(TABLA_TURNOS, valores, "$TURNO_ID = ?", arrayOf(idTurno.toString()))
     }
 }
