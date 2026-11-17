@@ -26,8 +26,10 @@ import com.example.appconteo.R
 import com.example.appconteo.data.ConvertidorImagen
 import com.example.appconteo.model.CatalogosRincon
 import com.example.appconteo.model.Clasificacion
+import com.example.appconteo.model.ConteoUiState
 import com.example.appconteo.model.Fechas
 import com.example.appconteo.model.HistorialRegistros
+import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.permisos.Permisos
 import com.example.appconteo.ui.components.BotonPrincipal
@@ -43,8 +45,14 @@ import kotlinx.coroutines.launch
 @Composable
 fun InicioUsuariosScreen(
     usuario: Usuario?,
-    usuariosViewModel: UsuariosViewModel = viewModel(),
-    conteoViewModel: ConteoViewModel = viewModel(),
+    historial: List<HistorialRegistros>,
+    conteoState: ConteoUiState,
+    onObtenerTurnoActual: (Long) -> Turno?,
+    onRegistrarEnHistorial: (String, String, Int, Long, Long, String, String, String?) -> Boolean,
+    onRecargarConteo: () -> Unit,
+    onValidarBoleta: (String) -> Boolean,
+    onIntentarEscanear: () -> Boolean,
+    onLimpiarMensajeConteo: () -> Unit,
     codigoScanned: String? = null,
     onCodigoConsumido: () -> Unit = {},
     onVerPerfil: () -> Unit,
@@ -53,13 +61,11 @@ fun InicioUsuariosScreen(
     onEscanearQr: () -> Unit,
     onCerrarSesion: () -> Unit
 ) {
-    val historial by usuariosViewModel.historial.collectAsStateWithLifecycle()
-    val conteoState by conteoViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var codigoActual by rememberSaveable { mutableStateOf<String?>(null) }
 
     val turnoActual = remember(usuario) {
-        usuariosViewModel.obtenerTurnoActual(usuario?.id ?: 0)
+        onObtenerTurnoActual(usuario?.id ?: 0)
     }
     val accesoActual = turnoActual?.acceso ?: -1
 
@@ -68,14 +74,14 @@ fun InicioUsuariosScreen(
     LaunchedEffect(conteoState.mensajeError) {
         conteoState.mensajeError?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            conteoViewModel.limpiarMensaje()
+            onLimpiarMensajeConteo()
         }
     }
 
     LaunchedEffect(codigoScanned) {
         if (!codigoScanned.isNullOrBlank()) {
             onCodigoConsumido()
-            if (conteoViewModel.validarBoleta(codigoScanned)) {
+            if (onValidarBoleta(codigoScanned)) {
                 codigoActual = codigoScanned
                 mostrarDialogoPorEscaneo = true
             }
@@ -90,20 +96,20 @@ fun InicioUsuariosScreen(
         onDispararDialogoEscaneo = { mostrarDialogoPorEscaneo = false },
         onRegistrarEnHistorial = { observador, tipo, tipoGrupo, rangoEtario ->
             val esCliente = tipo == Clasificacion.CLIENTE.etiqueta
-            val turnoAhora = usuariosViewModel.obtenerTurnoActual(usuario?.id ?: 0)
-            val guardado = usuariosViewModel.registrarEnHistorial(
-                observadorNombre = observador,
-                tipo = tipo,
-                acceso = turnoAhora?.acceso ?: 1,
-                idTurno = turnoAhora?.id ?: 0L,
-                usuarioId = usuario?.id ?: 0L,
-                tipoGrupo = tipoGrupo,
-                rangoEtario = rangoEtario,
-                codigoBoleta = if (esCliente) codigoActual else null
+            val turnoAhora = onObtenerTurnoActual(usuario?.id ?: 0)
+            val guardado = onRegistrarEnHistorial(
+                observador,
+                tipo,
+                turnoAhora?.acceso ?: 1,
+                turnoAhora?.id ?: 0L,
+                usuario?.id ?: 0L,
+                tipoGrupo,
+                rangoEtario,
+                if (esCliente) codigoActual else null
             )
             if (guardado) {
                 codigoActual = null
-                conteoViewModel.recargarConteo()
+                onRecargarConteo()
             }
             guardado
         },
@@ -111,7 +117,7 @@ fun InicioUsuariosScreen(
         onVerTurnos = onVerTurnos,
         onVerRegistros = onVerRegistros,
         onEscanearQr = {
-            if (conteoViewModel.intentarEscanear()) {
+            if (onIntentarEscanear()) {
                 onEscanearQr()
             }
         },

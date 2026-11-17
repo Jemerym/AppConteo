@@ -31,7 +31,7 @@ fun UsuariosScreen(
     var modoEliminar by remember { mutableStateOf(false) }
 
     val observadores = remember(usuarios) {
-        usuarios.filter { it.rolId != Rol.ID_ADMINISTRADOR }
+        usuarios.filter { !it.esAdmin }
     }
 
     porEliminar?.let { usuario ->

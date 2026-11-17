@@ -1,5 +1,10 @@
 package com.example.appconteo.navigation
 
+import android.widget.Toast
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -11,7 +16,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.appconteo.model.Rol
 import com.example.appconteo.ui.screens.AdminScreen
 import com.example.appconteo.ui.screens.DetalleUsuarioScreen
 import com.example.appconteo.ui.screens.EditarPerfilScreen
@@ -26,51 +30,62 @@ import com.example.appconteo.ui.screens.RegistroScreen
 import com.example.appconteo.ui.screens.UsuariosScreen
 import com.example.appconteo.ui.screens.VerRegistrosScreen
 import com.example.appconteo.viewmodel.ConteoViewModel
-import com.example.appconteo.viewmodel.ProgramarViewModel
 import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @Composable
-fun AppNavegacion() {
+fun AppNavegacion(
+    usuariosViewModel: UsuariosViewModel = viewModel(),
+    conteoViewModel: ConteoViewModel = viewModel()
+) {
     val navController = rememberNavController()
-    val usuariosViewModel: UsuariosViewModel = viewModel()
-    val conteoViewModel: ConteoViewModel = viewModel()
     val usuarioActual by usuariosViewModel.usuarioActual.collectAsStateWithLifecycle()
     val usuarios by usuariosViewModel.usuarios.collectAsStateWithLifecycle()
     val filtro by usuariosViewModel.filtro.collectAsStateWithLifecycle()
     val historial by usuariosViewModel.historial.collectAsStateWithLifecycle()
     val turnos by usuariosViewModel.turnos.collectAsStateWithLifecycle()
+    val mensaje by usuariosViewModel.mensaje.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    LaunchedEffect(mensaje) {
+        mensaje?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            usuariosViewModel.limpiarMensaje()
+        }
+    }
 
     val startDestination = if (usuarioActual != null) {
-        val esAdmin = usuarioActual?.rolId == Rol.ID_ADMINISTRADOR
+        val esAdmin = usuariosViewModel.esAdministrador
         if (esAdmin) Ruta.Admin.ruta else Ruta.InicioUsuarios.ruta
     } else {
         Ruta.Login.ruta
     }
 
-    NavHost(navController = navController, startDestination = startDestination) {
+    NavHost(
+        navController = navController,
+        startDestination = startDestination
+    ) {
 
         composable(Ruta.Registro.ruta) {
             RegistroScreen(
+                onExisteCorreo = usuariosViewModel::existeCorreo,
+                onGuardarUsuario = usuariosViewModel::insertarUsuario,
                 onRegistroExitoso = { usuario ->
                     navController.navigate(Ruta.Login.ruta) {
                         popUpTo(Ruta.Registro.ruta) { inclusive = true }
                     }
                 },
-                onIrLogin = { navController.navigate(Ruta.Login.ruta) },
-                usuariosViewModel = usuariosViewModel
+                onIrLogin = { navController.navigate(Ruta.Login.ruta) }
             )
         }
+
         composable(Ruta.Login.ruta) {
             LoginScreen(
+                onIniciarSesion = usuariosViewModel::iniciarSesion,
                 onLoginExitoso = {
-                    val usuario = usuariosViewModel.usuarioActual.value
-                    val esAdmin = usuario?.rolId == Rol.ID_ADMINISTRADOR
+                    val esAdmin = usuariosViewModel.esAdministrador
                     val destino = if (esAdmin) Ruta.Admin.ruta else Ruta.InicioUsuarios.ruta
-
-                    navController.navigate(destino) {
-                    }
+                    navController.navigate(destino)
                 },
-                usuariosViewModel = usuariosViewModel,
                 onIrRegistro = {
                     navController.navigate(Ruta.Registro.ruta) {
                         popUpTo(Ruta.Login.ruta) { inclusive = true }
@@ -84,16 +99,18 @@ fun AppNavegacion() {
 
         composable(Ruta.RecuperarClave.ruta) {
             RecuperarClaveScreen(
-                onVolverLogin = { navController.popBackStack() },
-                usuariosViewModel = usuariosViewModel
+                onVerificarClave = usuariosViewModel::recuperarClave,
+                onVolverLogin = { navController.popBackStack() }
             )
         }
 
         composable(Ruta.Admin.ruta) {
+            val conteoState by conteoViewModel.uiState.collectAsStateWithLifecycle()
             AdminScreen(
                 historial = historial,
                 usuarioActual = usuarioActual,
-                conteoViewModel = conteoViewModel,
+                conteoState = conteoState,
+                onRecargarConteo = conteoViewModel::recargarConteo,
                 onVerUsuarios = { navController.navigate(Ruta.Usuarios.ruta) },
                 onVerRegistros = { navController.navigate(Ruta.VerRegistros.crear()) },
                 onVerTurnos = { navController.navigate(Ruta.MisTurnos.ruta) },
@@ -116,21 +133,26 @@ fun AppNavegacion() {
                 historial = historial,
                 usuarioActual = usuarioActual,
                 turnoIdFiltro = if (turnoId > 0L) turnoId else null,
-                onAnularRegistro = { id -> usuariosViewModel.eliminarHistorial(id) },
-                onModificarRegistro = { id, acceso, grupo, edad ->
-                    usuariosViewModel.actualizarHistorial(id, acceso, grupo, edad)
-                },
+                onAnularRegistro = usuariosViewModel::eliminarHistorial,
+                onModificarRegistro = usuariosViewModel::actualizarHistorial,
                 onVolver = { navController.popBackStack() }
             )
         }
 
         composable(Ruta.InicioUsuarios.ruta) { backStackEntry ->
             val codigoScanned = backStackEntry.savedStateHandle.get<String>("codigo_scanned")
+            val conteoState by conteoViewModel.uiState.collectAsStateWithLifecycle()
 
             InicioUsuariosScreen(
                 usuario = usuarioActual,
-                usuariosViewModel = usuariosViewModel,
-                conteoViewModel = conteoViewModel,
+                historial = historial,
+                conteoState = conteoState,
+                onObtenerTurnoActual = usuariosViewModel::obtenerTurnoActual,
+                onRegistrarEnHistorial = usuariosViewModel::registrarEnHistorial,
+                onRecargarConteo = conteoViewModel::recargarConteo,
+                onValidarBoleta = conteoViewModel::validarBoleta,
+                onIntentarEscanear = conteoViewModel::intentarEscanear,
+                onLimpiarMensajeConteo = conteoViewModel::limpiarMensaje,
                 codigoScanned = codigoScanned,
                 onCodigoConsumido = { backStackEntry.savedStateHandle.remove<String>("codigo_scanned") },
                 onVerPerfil = { navController.navigate(Ruta.Perfil.ruta) },
@@ -150,8 +172,8 @@ fun AppNavegacion() {
             MisTurnosScreen(
                 usuario = usuarioActual,
                 turnos = turnos,
-                usuariosViewModel = usuariosViewModel,
-                onRecargarTurnos = { usuariosViewModel.recargarTurnos() },
+                onEliminarTurno = usuariosViewModel::eliminarTurno,
+                onRecargarTurnos = usuariosViewModel::recargarTurnos,
                 onVerRegistrosTurno = { turnoId ->
                     navController.navigate(Ruta.VerRegistros.crear(turnoId))
                 },
@@ -194,6 +216,7 @@ fun AppNavegacion() {
 
         composable(Ruta.Perfil.ruta) {
             PerfilScreen(
+                usuariosViewModel = usuariosViewModel,
                 onModificarPerfil = {
                     navController.navigate(Ruta.EditarPerfil.ruta)
                 },
@@ -205,8 +228,9 @@ fun AppNavegacion() {
                 }
             )
         }
+
         composable(
-                route = Ruta.DetalleUsuario.ruta,
+            route = Ruta.DetalleUsuario.ruta,
             arguments = listOf(navArgument("usuarioId") { type = NavType.LongType })
         ) { entrada ->
             val usuarioId = entrada.arguments?.getLong("usuarioId") ?: 0L
@@ -215,18 +239,21 @@ fun AppNavegacion() {
                 onVolver = { navController.navigateUp() }
             )
         }
+
         composable(Ruta.EditarPerfil.ruta) {
             val usuario = usuarioActual
             if (usuario != null) {
                 EditarPerfilScreen(
                     usuario = usuario,
                     onVolver = { navController.navigateUp() },
-                    onGuardar = { editado -> usuariosViewModel.actualizar(editado)
+                    onGuardar = { editado ->
+                        usuariosViewModel.actualizar(editado)
                         navController.navigateUp()
                     }
                 )
             }
         }
+
         composable(
             route = Ruta.ProgramarSesion.ruta,
             arguments = listOf(navArgument("turnoId") { type = NavType.LongType; defaultValue = 0L })

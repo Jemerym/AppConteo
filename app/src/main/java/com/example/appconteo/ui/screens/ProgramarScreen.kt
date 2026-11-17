@@ -66,8 +66,6 @@ fun ProgramarScreen(
 
     LaunchedEffect(uiState.asignacionExitosa) {
         if (uiState.asignacionExitosa) {
-            val mensaje = if (uiState.esEdicion) "✅ Turno actualizado con éxito" else "✅ Turno asignado con éxito"
-            Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
             onSesionProgramada()
         }
     }

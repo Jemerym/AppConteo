@@ -27,12 +27,12 @@ import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @Composable
 fun RecuperarClaveScreen(
-    onVolverLogin: () -> Unit,
-    usuariosViewModel: UsuariosViewModel = viewModel()
+    onVerificarClave: (String, String) -> String?,
+    onVolverLogin: () -> Unit
 ) {
     RecuperarClaveContent(
         onVolverLogin = onVolverLogin,
-        onVerificarClave = { correo, palabra -> usuariosViewModel.recuperarClave(correo, palabra) }
+        onVerificarClave = onVerificarClave
     )
 }
 

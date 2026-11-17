@@ -39,7 +39,15 @@ class RegistroViewModel : ViewModel() {
         _uiState.update { it.copy(aceptaTerminos = acepta, errorTerminos = null) }
     }
 
-    fun onRegistrar(existeCorreo: (String) -> Boolean): Usuario? {
+    fun onCorreoRepetido() {
+        _uiState.update { it.copy(errorCorreo = "Este correo ya se encuentra registrado") }
+    }
+
+    fun onExitoRegistro() {
+        _uiState.update { it.copy(registroExitoso = true) }
+    }
+
+    fun onRegistrar(): Usuario? {
         val estado = _uiState.value
         var valido = true
 
@@ -57,9 +65,6 @@ class RegistroViewModel : ViewModel() {
         val correoLimpio = estado.correo.trim()
         if (correoLimpio.isEmpty() || !Utilidades.esCorreoValido(correoLimpio)) {
             errCorreo = "Ingresa un correo válido"
-            valido = false
-        } else if (existeCorreo(correoLimpio)) {
-            errCorreo = "Este correo ya se encuentra registrado"
             valido = false
         }
 
@@ -91,7 +96,7 @@ class RegistroViewModel : ViewModel() {
             return null
         }
 
-        val nuevoUsuario = Usuario(
+        return Usuario(
             nombre = estado.nombre.trim(),
             correo = correoLimpio,
             contrasena = estado.contrasena.trim(),
@@ -99,9 +104,6 @@ class RegistroViewModel : ViewModel() {
             rolId = RolEnum.OBSERVADOR.id,
             rolNombre = RolEnum.OBSERVADOR.nombre
         )
-
-        _uiState.update { it.copy(registroExitoso = true) }
-        return nuevoUsuario
     }
 
     fun onLimpiar() {

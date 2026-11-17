@@ -9,4 +9,6 @@ data class Usuario(
     val contrasena: String = "",
     val palabraSecreta: String = "",
     val avatar: ByteArray? = null
-)
+) {
+    val esAdmin: Boolean get() = rolId == Rol.ID_ADMINISTRADOR
+}

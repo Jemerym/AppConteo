@@ -25,7 +25,7 @@ class LoginViewModel : ViewModel() {
         _uiState.update { it.copy(contrasenaVisible = !it.contrasenaVisible) }
     }
 
-    fun onLogin(usuariosViewModel: UsuariosViewModel): Boolean {
+    fun onLogin(iniciarSesion: (String, String) -> Boolean): Boolean {
         val estado = _uiState.value
         val errorCorreo = when {
             estado.correo.isBlank() -> "El correo es obligatorio"
@@ -40,7 +40,7 @@ class LoginViewModel : ViewModel() {
             }
             return false
         }
-        val exito = usuariosViewModel.iniciarSesion(estado.correo, estado.contrasena)
+        val exito = iniciarSesion(estado.correo, estado.contrasena)
         if (exito) {
             _uiState.update { it.copy(loginExitoso = true) }
             return true

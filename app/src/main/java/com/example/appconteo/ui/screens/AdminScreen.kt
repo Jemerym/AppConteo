@@ -25,23 +25,22 @@ import com.example.appconteo.ui.components.TarjetaMetrica
 import com.example.appconteo.ui.components.TarjetaSeccion
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
-import com.example.appconteo.viewmodel.ConteoViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun AdminScreen(
     historial: List<HistorialRegistros>,
     usuarioActual: Usuario?,
-    conteoViewModel: ConteoViewModel = viewModel(),
+    conteoState: ConteoUiState,
+    onRecargarConteo: () -> Unit,
     onVerUsuarios: () -> Unit,
     onVerRegistros: () -> Unit = {},
     onVerTurnos: () -> Unit = {},
     onIrProgramarSesion: () -> Unit,
     onCerrarSesion: () -> Unit
 ) {
-    val conteoState by conteoViewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(historial) {
-        conteoViewModel.recargarConteo()
+        onRecargarConteo()
     }
     AdminContent(
         historial = historial,

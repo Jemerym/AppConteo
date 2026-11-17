@@ -26,10 +26,10 @@ import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @Composable
 fun LoginScreen(
+    onIniciarSesion: (String, String) -> Boolean,
     onLoginExitoso: () -> Unit,
     onIrRegistro: () -> Unit,
     onIrRecuperarClave: () -> Unit = {},
-    usuariosViewModel: UsuariosViewModel = viewModel(),
     viewModel: LoginViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -42,7 +42,7 @@ fun LoginScreen(
         onContrasenaLogin = viewModel::onContrasenaLogin,
         onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
         onLogin = {
-            if (viewModel.onLogin(usuariosViewModel)) {
+            if (viewModel.onLogin(onIniciarSesion)) {
                 Toast.makeText(contex, "Login exitoso", Toast.LENGTH_SHORT).show()
                 onLoginExitoso()
             }

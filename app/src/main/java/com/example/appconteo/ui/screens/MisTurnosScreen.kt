@@ -24,14 +24,13 @@ import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.ui.components.TarjetaSeccion
 import com.example.appconteo.ui.theme.Dimens
-import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MisTurnosScreen(
     usuario: Usuario?,
     turnos: List<Turno>,
-    usuariosViewModel: UsuariosViewModel? = null,
+    onEliminarTurno: (Long) -> Unit = {},
     onRecargarTurnos: () -> Unit = {},
     onVerRegistrosTurno: (Long) -> Unit = {},
     onEditarTurno: (Long) -> Unit = {},
@@ -45,7 +44,7 @@ fun MisTurnosScreen(
     var modoAdmin by remember { mutableStateOf(false) }
     var turnoParaEliminar by remember { mutableStateOf<Turno?>(null) }
 
-    val esAdmin = usuario?.rolId == Rol.ID_ADMINISTRADOR
+    val esAdmin = usuario?.esAdmin == true
 
     val turnosFiltrados = remember(turnos, usuario, esAdmin) {
         if (esAdmin) {
@@ -218,7 +217,7 @@ fun MisTurnosScreen(
             text = { Text("¿Estás seguro de que deseas eliminar el turno asignado a ${turno.observadorNombre} (${turno.fecha} - ${turno.horaInicio} a ${turno.horaFin})?") },
             confirmButton = {
                 TextButton(onClick = {
-                    usuariosViewModel?.eliminarTurno(turno.id)
+                    onEliminarTurno(turno.id)
                     onRecargarTurnos()
                     turnoParaEliminar = null
                     Toast.makeText(context, "Turno eliminado con éxito", Toast.LENGTH_SHORT).show()

@@ -19,20 +19,45 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     private val db = UsuarioDbHelper(application)
     private val sesion = SesionPreferencias(application)
 
+    private val _mensaje = MutableStateFlow<String?>(null)
+    val mensaje: StateFlow<String?> = _mensaje.asStateFlow()
+
     private val _filtro = MutableStateFlow("")
     val filtro: StateFlow<String> = _filtro.asStateFlow()
 
-    private val _usuarios = MutableStateFlow(db.listarUsuarios())
+    private val _usuarios = MutableStateFlow<List<Usuario>>(emptyList())
     val usuarios: StateFlow<List<Usuario>> = _usuarios.asStateFlow()
 
     val roles: List<Rol> = db.listarRoles()
 
-    private val _usuarioActual = MutableStateFlow(db.buscarPorId(sesion.leer()))
+    private val _usuarioActual = MutableStateFlow<Usuario?>(null)
     val usuarioActual: StateFlow<Usuario?> = _usuarioActual.asStateFlow()
 
-    private fun recargar() {
-        val texto = _filtro.value.trim()
-        _usuarios.value = if (texto.isEmpty()) db.listarUsuarios() else db.buscarUsuarios(texto)
+    private val _historial = MutableStateFlow<List<HistorialRegistros>>(emptyList())
+    val historial: StateFlow<List<HistorialRegistros>> = _historial.asStateFlow()
+
+    private val _turnos = MutableStateFlow<List<Turno>>(emptyList())
+    val turnos: StateFlow<List<Turno>> = _turnos.asStateFlow()
+
+    val esAdministrador: Boolean
+        get() = _usuarioActual.value?.rolId == Rol.ID_ADMINISTRADOR
+
+    init {
+        recargar()
+    }
+
+    fun recargar() {
+        val idSesion = sesion.leer()
+        _usuarioActual.value = if (idSesion != -1L) db.buscarPorId(idSesion) else null
+
+        val textoFiltro = _filtro.value.trim()
+        _usuarios.value = if (textoFiltro.isEmpty()) db.listarUsuarios() else db.buscarUsuarios(textoFiltro)
+        _historial.value = db.listarHistorial()
+        _turnos.value = db.listarTurnos()
+    }
+
+    fun limpiarMensaje() {
+        _mensaje.value = null
     }
 
     fun buscar(texto: String) {
@@ -41,26 +66,25 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun actualizar(editado: Usuario) {
-        db.actualizarUsuario(editado)
-        if (_usuarioActual.value?.id == editado.id) _usuarioActual.value =
-            db.buscarPorId(editado.id)
-        recargar()
+        val filas = db.actualizarUsuario(editado)
+        if (filas > 0) {
+            _mensaje.value = "✅ Usuario '${editado.nombre}' actualizado"
+            recargar()
+        }
     }
 
     fun eliminar(usuario: Usuario) {
-        db.eliminarUsuario(usuario.id)
-        if (_usuarioActual.value?.id == usuario.id) cerrarSesion()
-        recargar()
+        val filas = db.eliminarUsuario(usuario.id)
+        if (filas > 0) {
+            _mensaje.value = "✅ Usuario '${usuario.nombre}' eliminado"
+            if (_usuarioActual.value?.id == usuario.id) cerrarSesion() else recargar()
+        }
     }
 
     fun cerrarSesion() {
         _usuarioActual.value = null
         sesion.borrar()
-    }
-
-    override fun onCleared() {
-        db.close()
-        super.onCleared()
+        recargar()
     }
 
     fun iniciarSesion(correo: String, contrasena: String): Boolean {
@@ -76,11 +100,9 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun recargarUsuarioActual() {
-        _usuarioActual.value = db.buscarPorId(sesion.leer())
+        val idSesion = sesion.leer()
+        _usuarioActual.value = if (idSesion != -1L) db.buscarPorId(idSesion) else null
     }
-
-    private val _historial = MutableStateFlow(db.listarHistorial())
-    val historial: StateFlow<List<HistorialRegistros>> = _historial.asStateFlow()
 
     fun registrarEnHistorial(
         observadorNombre: String,
@@ -119,18 +141,15 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         _historial.value = db.listarHistorial()
     }
 
-    private val _turnos = MutableStateFlow(db.listarTurnos())
-    val turnos: StateFlow<List<Turno>> = _turnos.asStateFlow()
-
     fun recargarTurnos() {
         _turnos.value = db.listarTurnos()
     }
 
     fun eliminarTurno(idTurno: Long) {
         db.eliminarTurno(idTurno)
+        _mensaje.value = "✅ Turno eliminado con éxito"
         recargarTurnos()
     }
-
 
     fun recuperarClave(correo: String, palabraSecreta: String): String? {
         val usuarioEncontrado = db.buscarPorCorreoYPalabra(correo, palabraSecreta)
@@ -141,7 +160,10 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun actualizarAvatar(id: Long, avatar: ByteArray): Int {
         val res = db.actualizarAvatar(id, avatar)
-        recargarUsuarioActual()
+        if (res > 0) {
+            _mensaje.value = "✅ Foto de perfil actualizada"
+            recargarUsuarioActual()
+        }
         return res
     }
 
@@ -149,19 +171,28 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun insertarUsuario(usuario: Usuario): Long {
         val id = db.insertarUsuario(usuario)
-        recargar()
+        if (id != -1L) {
+            _mensaje.value = "✅ Usuario registrado con éxito"
+            recargar()
+        }
         return id
     }
 
     fun insertarTurno(idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Long {
         val id = db.insertarTurno(idUsuario, acceso, horaInicio, horaFin, fecha)
-        recargarTurnos()
+        if (id != -1L) {
+            _mensaje.value = "✅ Turno programado con éxito"
+            recargarTurnos()
+        }
         return id
     }
 
     fun actualizarTurno(idTurno: Long, idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Int {
         val res = db.actualizarTurno(idTurno, idUsuario, acceso, horaInicio, horaFin, fecha)
-        recargarTurnos()
+        if (res > 0) {
+            _mensaje.value = "✅ Turno actualizado con éxito"
+            recargarTurnos()
+        }
         return res
     }
 
