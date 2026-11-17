@@ -1,8 +1,6 @@
 package com.example.appconteo.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import com.example.appconteo.data.UsuarioDbHelper
+import androidx.lifecycle.ViewModel
 import com.example.appconteo.model.RegistroUiState
 import com.example.appconteo.model.RolEnum
 import com.example.appconteo.model.Usuario
@@ -12,8 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class RegistroViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = UsuarioDbHelper(application)
+class RegistroViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(RegistroUiState())
     val uiState: StateFlow<RegistroUiState> = _uiState.asStateFlow()
@@ -42,7 +39,7 @@ class RegistroViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(aceptaTerminos = acepta, errorTerminos = null) }
     }
 
-    fun onRegistrar(): Usuario? {
+    fun onRegistrar(existeCorreo: (String) -> Boolean): Usuario? {
         val estado = _uiState.value
         var valido = true
 
@@ -61,7 +58,7 @@ class RegistroViewModel(application: Application) : AndroidViewModel(application
         if (correoLimpio.isEmpty() || !Utilidades.esCorreoValido(correoLimpio)) {
             errCorreo = "Ingresa un correo válido"
             valido = false
-        } else if (db.buscarPorCorreo(correoLimpio) != null) {
+        } else if (existeCorreo(correoLimpio)) {
             errCorreo = "Este correo ya se encuentra registrado"
             valido = false
         }
@@ -103,23 +100,11 @@ class RegistroViewModel(application: Application) : AndroidViewModel(application
             rolNombre = RolEnum.OBSERVADOR.nombre
         )
 
-        val idInsertado = db.insertarUsuario(nuevoUsuario)
-        if (idInsertado == -1L) {
-            _uiState.update { it.copy(errorCorreo = "Error al guardar el usuario en la base de datos") }
-            return null
-        }
-
-        val usuarioConId = nuevoUsuario.copy(id = idInsertado)
         _uiState.update { it.copy(registroExitoso = true) }
-        return usuarioConId
+        return nuevoUsuario
     }
 
     fun onLimpiar() {
         _uiState.value = RegistroUiState()
-    }
-
-    override fun onCleared() {
-        db.close()
-        super.onCleared()
     }
 }

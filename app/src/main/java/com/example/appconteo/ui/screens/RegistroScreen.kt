@@ -30,12 +30,14 @@ import com.example.appconteo.ui.theme.Dimens
 import com.example.appconteo.ui.theme.Exito
 import com.example.appconteo.ui.theme.ExitoFondo
 import com.example.appconteo.viewmodel.RegistroViewModel
+import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @Composable
 fun RegistroScreen(
     onRegistroExitoso: (Usuario) -> Unit,
     onIrLogin: () -> Unit,
-    viewModel: RegistroViewModel = viewModel()
+    viewModel: RegistroViewModel = viewModel(),
+    usuariosViewModel: UsuariosViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -48,7 +50,12 @@ fun RegistroScreen(
         onPalabraSecretaCambia = viewModel::onPalabraSecretaCambia,
         onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
         onTerminosCambia = viewModel::onTerminosCambia,
-        onRegistrar = { viewModel.onRegistrar()?.let { usuario -> onRegistroExitoso(usuario) } },
+        onRegistrar = {
+            viewModel.onRegistrar(usuariosViewModel::existeCorreo)?.let { usuario ->
+                usuariosViewModel.insertarUsuario(usuario)
+                onRegistroExitoso(usuario)
+            }
+        },
         onLimpiar = viewModel::onLimpiar,
         onIrLogin = onIrLogin,
         snackbarHostState = snackbarHostState

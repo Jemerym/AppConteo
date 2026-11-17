@@ -32,24 +32,38 @@ import com.example.appconteo.ui.components.FotoPerfil
 import com.example.appconteo.ui.components.TarjetaSeccion
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
-import com.example.appconteo.viewmodel.PerfilViewModel
+import com.example.appconteo.viewmodel.UsuariosViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun PerfilScreen(
-    perfilViewModel: PerfilViewModel = viewModel(),
+    usuariosViewModel: UsuariosViewModel = viewModel(),
     onModificarPerfil: () -> Unit,
     onVolver: () -> Unit
 ) {
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
-        perfilViewModel.recargarUsuario()
+        usuariosViewModel.recargarUsuarioActual()
     }
-    val usuario by perfilViewModel.usuarioActual.collectAsStateWithLifecycle()
+    val usuario by usuariosViewModel.usuarioActual.collectAsStateWithLifecycle()
 
     PerfilContent(
         usuario = usuario,
-        onFotoTomada = { foto -> perfilViewModel.cambiarAvatarDesdeCamara(foto) },
-        onImagenElegida = { uri -> perfilViewModel.cambiarAvatarDesdeGaleria(uri) },
+        onFotoTomada = { foto ->
+            usuario?.let { u ->
+                val bytes = ConvertidorImagen.aBytes(foto)
+                usuariosViewModel.actualizarAvatar(u.id, bytes)
+            }
+        },
+        onImagenElegida = { uri ->
+            usuario?.let { u ->
+                val bitmap = ConvertidorImagen.desdeUri(context, uri)
+                if (bitmap != null) {
+                    val bytes = ConvertidorImagen.aBytes(bitmap)
+                    usuariosViewModel.actualizarAvatar(u.id, bytes)
+                }
+            }
+        },
         onModificarPerfil = onModificarPerfil,
         onVolver = onVolver
     )

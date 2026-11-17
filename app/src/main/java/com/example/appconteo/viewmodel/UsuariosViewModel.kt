@@ -139,6 +139,37 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun buscarPorId(id: Long): Usuario? = db.buscarPorId(id)
 
+    fun actualizarAvatar(id: Long, avatar: ByteArray): Int {
+        val res = db.actualizarAvatar(id, avatar)
+        recargarUsuarioActual()
+        return res
+    }
+
+    fun existeCorreo(correo: String): Boolean = db.buscarPorCorreo(correo) != null
+
+    fun insertarUsuario(usuario: Usuario): Long {
+        val id = db.insertarUsuario(usuario)
+        recargar()
+        return id
+    }
+
+    fun insertarTurno(idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Long {
+        val id = db.insertarTurno(idUsuario, acceso, horaInicio, horaFin, fecha)
+        recargarTurnos()
+        return id
+    }
+
+    fun actualizarTurno(idTurno: Long, idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Int {
+        val res = db.actualizarTurno(idTurno, idUsuario, acceso, horaInicio, horaFin, fecha)
+        recargarTurnos()
+        return res
+    }
+
+    fun buscarTurnoPorId(idTurno: Long): Turno? = db.buscarTurnoPorId(idTurno)
+
+    fun haySolapamientoTurno(idUsuario: Long, acceso: Int, fecha: String, inicio: String, fin: String, excluirIdTurno: Long = 0L): Boolean =
+        db.haySolapamientoTurno(idUsuario, acceso, fecha, inicio, fin, excluirIdTurno)
+
     fun listarHistorialPorUsuarioPaginado(usuarioId: Long, fechaFiltro: String? = null, limite: Int = 15): List<HistorialRegistros> =
         db.listarHistorialPorUsuarioPaginado(usuarioId, fechaFiltro, limite)
 

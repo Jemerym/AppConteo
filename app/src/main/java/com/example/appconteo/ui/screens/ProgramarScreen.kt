@@ -54,7 +54,7 @@ fun ProgramarScreen(
 
     LaunchedEffect(turnoId) {
         if (turnoId > 0L) {
-            programarViewModel.cargarTurno(turnoId)
+            programarViewModel.cargarTurno(turnoId, usuariosViewModel::buscarTurnoPorId, usuariosViewModel::buscarPorId)
         }
     }
 
@@ -80,7 +80,11 @@ fun ProgramarScreen(
         onDiasOffsetCambia = programarViewModel::onDiasOffsetCambia,
         onTramoCambia = programarViewModel::onTramoSeleccionado,
         onProgramar = {
-            programarViewModel.programarTurno()
+            programarViewModel.programarTurno(
+                verificarSolapamiento = usuariosViewModel::haySolapamientoTurno,
+                actualizar = usuariosViewModel::actualizarTurno,
+                insertar = usuariosViewModel::insertarTurno
+            )
         },
         onVolver = onVolver
     )

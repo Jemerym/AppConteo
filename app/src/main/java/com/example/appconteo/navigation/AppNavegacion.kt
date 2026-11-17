@@ -57,6 +57,7 @@ fun AppNavegacion() {
                     }
                 },
                 onIrLogin = { navController.navigate(Ruta.Login.ruta) },
+                usuariosViewModel = usuariosViewModel
             )
         }
         composable(Ruta.Login.ruta) {
