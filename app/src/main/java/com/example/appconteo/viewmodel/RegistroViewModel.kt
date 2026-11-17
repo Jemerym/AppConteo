@@ -43,10 +43,6 @@ class RegistroViewModel : ViewModel() {
         _uiState.update { it.copy(errorCorreo = "Este correo ya se encuentra registrado") }
     }
 
-    fun onExitoRegistro() {
-        _uiState.update { it.copy(registroExitoso = true) }
-    }
-
     fun onRegistrar(): Usuario? {
         val estado = _uiState.value
         var valido = true

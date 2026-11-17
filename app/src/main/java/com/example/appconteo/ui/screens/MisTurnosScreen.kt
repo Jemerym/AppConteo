@@ -161,7 +161,7 @@ fun MisTurnosScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "💡 Toca la tarjeta para ver registros",
+                                        text = "Toca la tarjeta para ver registros",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary
                                     )

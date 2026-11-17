@@ -13,9 +13,7 @@ data class RegistroUiState(
     val errorCorreo: String? = null,
     val errorContrasena: String? = null,
     val errorPalabraSecreta: String? = null,
-    val errorTerminos: String? = null,
-
-    val registroExitoso: Boolean = false
+    val errorTerminos: String? = null
 ) {
     val tieneMinimo8: Boolean get() = contrasena.length >= 8
     val tieneMayuscula: Boolean get() = contrasena.any { it.isUpperCase() }

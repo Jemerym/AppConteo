@@ -8,7 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -27,8 +26,6 @@ import com.example.appconteo.ui.components.CasillaConTexto
 import com.example.appconteo.ui.components.TarjetaSeccion
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
-import com.example.appconteo.ui.theme.Exito
-import com.example.appconteo.ui.theme.ExitoFondo
 import com.example.appconteo.viewmodel.RegistroViewModel
 
 @Composable
@@ -56,7 +53,6 @@ fun RegistroScreen(
                     viewModel.onCorreoRepetido()
                 } else {
                     onGuardarUsuario(usuario)
-                    viewModel.onExitoRegistro()
                     onRegistroExitoso(usuario)
                 }
             }
@@ -197,10 +193,6 @@ fun RegistroContent(
                     }
                 }
 
-                if (uiState.registroExitoso) {
-                    MensajeExito(nombre = uiState.nombre)
-                }
-
                 Spacer(Modifier.height(Dimens.espacioGrande))
             }
         }
@@ -232,31 +224,6 @@ private fun FilaCriterio(cumple: Boolean, texto: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(text = icono, color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
         Text(text = texto, color = color, style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-@Composable
-private fun MensajeExito(nombre: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = ExitoFondo, contentColor = Exito)
-    ) {
-        Row(
-            modifier = Modifier.padding(Dimens.espacioMedio),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_check),
-                contentDescription = null,
-                tint = Exito,
-                modifier = Modifier.size(Dimens.tamanoIcono)
-            )
-            Text(
-                text = stringResource(R.string.registro_exitoso, nombre),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(start = Dimens.espacioChico)
-            )
-        }
     }
 }
 
