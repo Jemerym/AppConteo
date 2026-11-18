@@ -211,6 +211,7 @@ private fun IndicadoresContrasena(uiState: RegistroUiState) {
 
         FilaCriterio(cumple = uiState.tieneMinimo8, texto = "Mínimo 8 caracteres")
         FilaCriterio(cumple = uiState.tieneMayuscula, texto = "Al menos 1 mayúscula (A-Z)")
+        FilaCriterio(cumple = uiState.tieneMinuscula, texto = "Al menos 1 minúscula (a-z)")
         FilaCriterio(cumple = uiState.tieneNumero, texto = "Al menos 1 número (0-9)")
         FilaCriterio(cumple = uiState.tieneSimbolo, texto = "Al menos 1 símbolo (@#$%)")
     }

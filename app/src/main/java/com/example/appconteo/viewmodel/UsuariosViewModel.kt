@@ -74,6 +74,10 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun eliminar(usuario: Usuario) {
+        if (!esAdministrador) {
+            _mensaje.value = "⚠️ Acción no permitida"
+            return
+        }
         val filas = db.eliminarUsuario(usuario.id)
         if (filas > 0) {
             _mensaje.value = "✅ Usuario '${usuario.nombre}' eliminado"
@@ -84,13 +88,16 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     fun cerrarSesion() {
         _usuarioActual.value = null
         sesion.borrar()
-        recargar()
+    }
+
+    override fun onCleared() {
+        db.close()
     }
 
     fun iniciarSesion(correo: String, contrasena: String): Boolean {
         val usuarioEncontrado = db.buscarPorCorreo(correo)
         val hashInput = Utilidades.hashContrasena(contrasena)
-        if (usuarioEncontrado != null && (usuarioEncontrado.contrasena == contrasena || usuarioEncontrado.contrasena == hashInput)) {
+        if (usuarioEncontrado != null && usuarioEncontrado.contrasena == hashInput) {
             _usuarioActual.value = usuarioEncontrado
             sesion.guardar(usuarioEncontrado.id)
             recargar()
@@ -132,13 +139,23 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun actualizarHistorial(idHistorial: Long, acceso: Int, tipoGrupo: String, rangoEtario: String) {
+        if (!esAdministrador) {
+            _mensaje.value = "⚠️ Acción no permitida"
+            return
+        }
         db.actualizarHistorial(idHistorial, acceso, tipoGrupo, rangoEtario)
         _historial.value = db.listarHistorial()
+        _mensaje.value = "✅ Registro actualizado"
     }
 
     fun eliminarHistorial(idHistorial: Long) {
+        if (!esAdministrador) {
+            _mensaje.value = "⚠️ Acción no permitida"
+            return
+        }
         db.eliminarHistorial(idHistorial)
         _historial.value = db.listarHistorial()
+        _mensaje.value = "✅ Registro eliminado"
     }
 
     fun recargarTurnos() {
@@ -146,14 +163,23 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun eliminarTurno(idTurno: Long) {
+        if (!esAdministrador) {
+            _mensaje.value = "⚠️ Acción no permitida"
+            return
+        }
         db.eliminarTurno(idTurno)
         _mensaje.value = "✅ Turno eliminado con éxito"
         recargarTurnos()
     }
 
-    fun recuperarClave(correo: String, palabraSecreta: String): String? {
-        val usuarioEncontrado = db.buscarPorCorreoYPalabra(correo, palabraSecreta)
-        return usuarioEncontrado?.contrasena
+    fun recuperarClave(correo: String, palabraSecreta: String, nuevaClave: String): Boolean {
+        val u = db.buscarPorCorreo(correo.trim()) ?: return false
+        if (!u.palabraSecreta.equals(palabraSecreta.trim(), ignoreCase = true)) return false
+        val actualizado = db.actualizarUsuario(u.copy(contrasena = Utilidades.hashContrasena(nuevaClave))) > 0
+        if (actualizado) {
+            _mensaje.value = "✅ Clave actualizada con éxito"
+        }
+        return actualizado
     }
 
     fun buscarPorId(id: Long): Usuario? = db.buscarPorId(id)
@@ -169,16 +195,22 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun existeCorreo(correo: String): Boolean = db.buscarPorCorreo(correo) != null
 
-    fun insertarUsuario(usuario: Usuario): Long {
+    fun insertarUsuario(usuario: Usuario): Boolean {
         val id = db.insertarUsuario(usuario)
         if (id != -1L) {
             _mensaje.value = "✅ Usuario registrado con éxito"
             recargar()
+            return true
         }
-        return id
+        _mensaje.value = "❌ Error al registrar usuario en la base de datos"
+        return false
     }
 
     fun insertarTurno(idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Long {
+        if (!esAdministrador) {
+            _mensaje.value = "⚠️ Solo un administrador puede programar turnos"
+            return -1L
+        }
         val id = db.insertarTurno(idUsuario, acceso, horaInicio, horaFin, fecha)
         if (id != -1L) {
             _mensaje.value = "✅ Turno programado con éxito"
@@ -188,6 +220,10 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun actualizarTurno(idTurno: Long, idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Int {
+        if (!esAdministrador) {
+            _mensaje.value = "⚠️ Solo un administrador puede modificar turnos"
+            return 0
+        }
         val res = db.actualizarTurno(idTurno, idUsuario, acceso, horaInicio, horaFin, fecha)
         if (res > 0) {
             _mensaje.value = "✅ Turno actualizado con éxito"

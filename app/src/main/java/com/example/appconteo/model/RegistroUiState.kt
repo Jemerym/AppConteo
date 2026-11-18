@@ -17,7 +17,9 @@ data class RegistroUiState(
 ) {
     val tieneMinimo8: Boolean get() = contrasena.length >= 8
     val tieneMayuscula: Boolean get() = contrasena.any { it.isUpperCase() }
+    val tieneMinuscula: Boolean get() = contrasena.any { it.isLowerCase() }
+
     val tieneNumero: Boolean get() = contrasena.any { it.isDigit() }
     val tieneSimbolo: Boolean get() = contrasena.any { !it.isLetterOrDigit() }
-    val contrasenaValida: Boolean get() = tieneMinimo8 && tieneMayuscula && tieneNumero && tieneSimbolo
+    val contrasenaValida: Boolean get() = tieneMinimo8 && tieneMayuscula && tieneMinuscula && tieneNumero && tieneSimbolo
 }

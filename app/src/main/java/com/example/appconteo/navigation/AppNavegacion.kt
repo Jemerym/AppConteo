@@ -8,14 +8,19 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.appconteo.model.Usuario
 import com.example.appconteo.ui.screens.AdminScreen
 import com.example.appconteo.ui.screens.DetalleUsuarioScreen
 import com.example.appconteo.ui.screens.EditarPerfilScreen
@@ -38,13 +43,16 @@ fun AppNavegacion(
     conteoViewModel: ConteoViewModel = viewModel()
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+
     val usuarioActual by usuariosViewModel.usuarioActual.collectAsStateWithLifecycle()
     val usuarios by usuariosViewModel.usuarios.collectAsStateWithLifecycle()
     val filtro by usuariosViewModel.filtro.collectAsStateWithLifecycle()
     val historial by usuariosViewModel.historial.collectAsStateWithLifecycle()
     val turnos by usuariosViewModel.turnos.collectAsStateWithLifecycle()
     val mensaje by usuariosViewModel.mensaje.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+
+    val esAdmin = usuariosViewModel.esAdministrador
 
     LaunchedEffect(mensaje) {
         mensaje?.let {
@@ -54,27 +62,33 @@ fun AppNavegacion(
     }
 
     val startDestination = if (usuarioActual != null) {
-        val esAdmin = usuariosViewModel.esAdministrador
         if (esAdmin) Ruta.Admin.ruta else Ruta.InicioUsuarios.ruta
     } else {
         Ruta.Login.ruta
     }
 
+    val cerrarSesion: () -> Unit = {
+        navController.cerrarSesionLimpiando()
+        usuariosViewModel.cerrarSesion()
+    }
+
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = startDestination,
+        enterTransition = { slideInHorizontally(initialOffsetX = { it / 4 }) + fadeIn() },
+        exitTransition = { fadeOut() },
+        popEnterTransition = { fadeIn() },
+        popExitTransition = { slideOutHorizontally(targetOffsetX = { it / 4 }) + fadeOut() }
     ) {
 
         composable(Ruta.Registro.ruta) {
             RegistroScreen(
                 onExisteCorreo = usuariosViewModel::existeCorreo,
                 onGuardarUsuario = usuariosViewModel::insertarUsuario,
-                onRegistroExitoso = { usuario ->
-                    navController.navigate(Ruta.Login.ruta) {
-                        popUpTo(Ruta.Registro.ruta) { inclusive = true }
-                    }
+                onRegistroExitoso = { _ ->
+                    navController.popBackStack(Ruta.Login.ruta, inclusive = false)
                 },
-                onIrLogin = { navController.navigate(Ruta.Login.ruta) }
+                onIrLogin = { navController.popBackStack(Ruta.Login.ruta, inclusive = false) }
             )
         }
 
@@ -82,46 +96,42 @@ fun AppNavegacion(
             LoginScreen(
                 onIniciarSesion = usuariosViewModel::iniciarSesion,
                 onLoginExitoso = {
-                    val esAdmin = usuariosViewModel.esAdministrador
-                    val destino = if (esAdmin) Ruta.Admin.ruta else Ruta.InicioUsuarios.ruta
-                    navController.navigate(destino)
-                },
-                onIrRegistro = {
-                    navController.navigate(Ruta.Registro.ruta) {
+                    val destino = if (usuariosViewModel.esAdministrador) Ruta.Admin.ruta else Ruta.InicioUsuarios.ruta
+                    navController.navigate(destino) {
                         popUpTo(Ruta.Login.ruta) { inclusive = true }
                     }
                 },
+                onIrRegistro = {
+                    navController.navegarUnico(Ruta.Registro.ruta)
+                },
                 onIrRecuperarClave = {
-                    navController.navigate(Ruta.RecuperarClave.ruta)
+                    navController.navegarUnico(Ruta.RecuperarClave.ruta)
                 }
             )
         }
 
         composable(Ruta.RecuperarClave.ruta) {
             RecuperarClaveScreen(
-                onVerificarClave = usuariosViewModel::recuperarClave,
+                onRestablecerClave = usuariosViewModel::recuperarClave,
                 onVolverLogin = { navController.popBackStack() }
             )
         }
 
         composable(Ruta.Admin.ruta) {
-            val conteoState by conteoViewModel.uiState.collectAsStateWithLifecycle()
-            AdminScreen(
-                historial = historial,
-                usuarioActual = usuarioActual,
-                conteoState = conteoState,
-                onRecargarConteo = conteoViewModel::recargarConteo,
-                onVerUsuarios = { navController.navigate(Ruta.Usuarios.ruta) },
-                onVerRegistros = { navController.navigate(Ruta.VerRegistros.crear()) },
-                onVerTurnos = { navController.navigate(Ruta.MisTurnos.ruta) },
-                onIrProgramarSesion = { navController.navigate(Ruta.ProgramarSesion.crear()) },
-                onCerrarSesion = {
-                    navController.navigate(Ruta.Login.ruta) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                    usuariosViewModel.cerrarSesion()
-                }
-            )
+            SoloAdmin(usuario = usuarioActual, onDenegado = { navController.popBackStack() }) { admin ->
+                val conteoState by conteoViewModel.uiState.collectAsStateWithLifecycle()
+                AdminScreen(
+                    historial = historial,
+                    usuarioActual = admin,
+                    conteoState = conteoState,
+                    onRecargarConteo = conteoViewModel::recargarConteo,
+                    onVerUsuarios = { navController.navegarUnico(Ruta.Usuarios.ruta) },
+                    onVerRegistros = { navController.navegarUnico(Ruta.VerRegistros.crear()) },
+                    onVerTurnos = { navController.navegarUnico(Ruta.MisTurnos.ruta) },
+                    onIrProgramarSesion = { navController.navegarUnico(Ruta.ProgramarSesion.crear()) },
+                    onCerrarSesion = cerrarSesion
+                )
+            }
         }
 
         composable(
@@ -155,16 +165,11 @@ fun AppNavegacion(
                 onLimpiarMensajeConteo = conteoViewModel::limpiarMensaje,
                 codigoScanned = codigoScanned,
                 onCodigoConsumido = { backStackEntry.savedStateHandle.remove<String>("codigo_scanned") },
-                onVerPerfil = { navController.navigate(Ruta.Perfil.ruta) },
-                onVerTurnos = { navController.navigate(Ruta.MisTurnos.ruta) },
-                onVerRegistros = { navController.navigate(Ruta.VerRegistros.crear()) },
-                onEscanearQr = { navController.navigate(Ruta.EscanearQr.ruta) },
-                onCerrarSesion = {
-                    navController.navigate(Ruta.Login.ruta) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                    usuariosViewModel.cerrarSesion()
-                }
+                onVerPerfil = { navController.navegarUnico(Ruta.Perfil.ruta) },
+                onVerTurnos = { navController.navegarUnico(Ruta.MisTurnos.ruta) },
+                onVerRegistros = { navController.navegarUnico(Ruta.VerRegistros.crear()) },
+                onEscanearQr = { navController.navegarUnico(Ruta.EscanearQr.ruta) },
+                onCerrarSesion = cerrarSesion
             )
         }
 
@@ -175,10 +180,10 @@ fun AppNavegacion(
                 onEliminarTurno = usuariosViewModel::eliminarTurno,
                 onRecargarTurnos = usuariosViewModel::recargarTurnos,
                 onVerRegistrosTurno = { turnoId ->
-                    navController.navigate(Ruta.VerRegistros.crear(turnoId))
+                    navController.navegarUnico(Ruta.VerRegistros.crear(turnoId))
                 },
                 onEditarTurno = { turnoId ->
-                    navController.navigate(Ruta.ProgramarSesion.crear(turnoId))
+                    navController.navegarUnico(Ruta.ProgramarSesion.crear(turnoId))
                 },
                 onVolver = {
                     if (navController.previousBackStackEntry != null) {
@@ -199,26 +204,28 @@ fun AppNavegacion(
         }
 
         composable(Ruta.Usuarios.ruta) {
-            UsuariosScreen(
-                usuarios = usuarios,
-                usuarioActual = usuarioActual,
-                filtro = filtro,
-                onBuscar = usuariosViewModel::buscar,
-                onEditar = { id -> navController.navigate(Ruta.DetalleUsuario.crear(id)) },
-                onEliminarUsuario = usuariosViewModel::eliminar,
-                onVolver = {
-                    if (navController.previousBackStackEntry != null) {
-                        navController.popBackStack()
+            SoloAdmin(usuario = usuarioActual, onDenegado = { navController.popBackStack() }) { admin ->
+                UsuariosScreen(
+                    usuarios = usuarios,
+                    usuarioActual = admin,
+                    filtro = filtro,
+                    onBuscar = usuariosViewModel::buscar,
+                    onEditar = { id -> navController.navegarUnico(Ruta.DetalleUsuario.crear(id)) },
+                    onEliminarUsuario = usuariosViewModel::eliminar,
+                    onVolver = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        }
                     }
-                }
-            )
+                )
+            }
         }
 
         composable(Ruta.Perfil.ruta) {
             PerfilScreen(
                 usuariosViewModel = usuariosViewModel,
                 onModificarPerfil = {
-                    navController.navigate(Ruta.EditarPerfil.ruta)
+                    navController.navegarUnico(Ruta.EditarPerfil.ruta)
                 },
                 onVolver = {
                     usuariosViewModel.recargarUsuarioActual()
@@ -234,10 +241,12 @@ fun AppNavegacion(
             arguments = listOf(navArgument("usuarioId") { type = NavType.LongType })
         ) { entrada ->
             val usuarioId = entrada.arguments?.getLong("usuarioId") ?: 0L
-            DetalleUsuarioScreen(
-                usuarioId = usuarioId,
-                onVolver = { navController.navigateUp() }
-            )
+            SoloAdmin(usuario = usuarioActual, onDenegado = { navController.popBackStack() }) { _ ->
+                DetalleUsuarioScreen(
+                    usuarioId = usuarioId,
+                    onVolver = { navController.navigateUp() }
+                )
+            }
         }
 
         composable(Ruta.EditarPerfil.ruta) {
@@ -260,18 +269,50 @@ fun AppNavegacion(
         ) { backStackEntry ->
             val turnoId = backStackEntry.arguments?.getLong("turnoId") ?: 0L
 
-            ProgramarScreen(
-                usuariosViewModel = usuariosViewModel,
-                turnoId = turnoId,
-                onVolver = {
-                    if (navController.previousBackStackEntry != null) {
+            SoloAdmin(usuario = usuarioActual, onDenegado = { navController.popBackStack() }) { _ ->
+                ProgramarScreen(
+                    usuariosViewModel = usuariosViewModel,
+                    turnoId = turnoId,
+                    onVolver = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        }
+                    },
+                    onSesionProgramada = {
                         navController.popBackStack()
                     }
-                },
-                onSesionProgramada = {
-                    navController.popBackStack()
-                }
-            )
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun SoloAdmin(
+    usuario: Usuario?,
+    onDenegado: () -> Unit,
+    contenido: @Composable (Usuario) -> Unit
+) {
+    // Evita que la pantalla desaparezca mientras corre la animación de salida
+    var ultimo by remember { mutableStateOf<Usuario?>(null) }
+    if (usuario != null) ultimo = usuario
+    val actual = usuario ?: ultimo
+
+    when {
+        actual == null -> Unit
+        actual.esAdmin -> contenido(actual)
+        else -> LaunchedEffect(Unit) { onDenegado() }
+    }
+}
+
+private fun NavHostController.cerrarSesionLimpiando() {
+    navigate(Ruta.Login.ruta) {
+        popUpTo(0) { inclusive = true }
+    }
+}
+
+private fun NavHostController.navegarUnico(ruta: String) {
+    navigate(ruta) {
+        launchSingleTop = true
     }
 }

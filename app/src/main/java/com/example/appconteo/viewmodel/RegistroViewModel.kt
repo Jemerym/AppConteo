@@ -95,7 +95,7 @@ class RegistroViewModel : ViewModel() {
         return Usuario(
             nombre = estado.nombre.trim(),
             correo = correoLimpio,
-            contrasena = estado.contrasena.trim(),
+            contrasena = Utilidades.hashContrasena(estado.contrasena.trim()),
             palabraSecreta = estado.palabraSecreta.trim(),
             rolId = RolEnum.OBSERVADOR.id,
             rolNombre = RolEnum.OBSERVADOR.nombre

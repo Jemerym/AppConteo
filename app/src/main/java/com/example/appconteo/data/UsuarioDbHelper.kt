@@ -16,7 +16,7 @@ class UsuarioDbHelper(context: Context) :
 
     companion object {
         private const val NOMBRE_BD = "miregistro.db"
-        private const val VERSION_BD = 20
+        private const val VERSION_BD = 21
 
         private const val TABLA_ROLES = "roles"
         private const val ROL_ID = "id_rol"

@@ -3,6 +3,7 @@ package com.example.appconteo.viewmodel
 import androidx.lifecycle.ViewModel
 import com.example.appconteo.model.EditarPerfilUiState
 import com.example.appconteo.model.Usuario
+import com.example.appconteo.model.Utilidades
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,10 +70,11 @@ class EditarPerfilViewModel : ViewModel() {
             valido = false
         }
 
+        val hashInput = Utilidades.hashContrasena(estado.contrasenaActual)
         if (estado.contrasenaActual.isBlank()) {
             errorActual = "Ingresa tu contraseña actual"
             valido = false
-        } else if (usuarioOriginal.contrasena != estado.contrasenaActual) {
+        } else if (usuarioOriginal.contrasena != estado.contrasenaActual && usuarioOriginal.contrasena != hashInput) {
             errorActual = "Contraseña actual incorrecta"
             valido = false
         }
@@ -86,7 +88,7 @@ class EditarPerfilViewModel : ViewModel() {
                 errorConfirmar = "Las contraseñas no coinciden"
                 valido = false
             } else {
-                nuevaContra = estado.nuevaContrasena
+                nuevaContra = Utilidades.hashContrasena(estado.nuevaContrasena)
             }
         }
 
