@@ -81,9 +81,6 @@ fun PerfilContent(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val fotoBitmap = remember(usuario?.avatar) {
-        ConvertidorImagen.aBitmap(usuario?.avatar)
-    }
     fun avisarPermisoDenegado(mensaje: String) {
         scope.launch {
             val res = snackbarHostState.showSnackbar(
@@ -163,7 +160,7 @@ fun PerfilContent(
             Spacer(modifier = Modifier.height(Dimens.espacioGrande))
 
             FotoPerfil(
-                fotoBitmap = fotoBitmap,
+                fotoUrl = usuario?.avatarUrl,
                 modifier = Modifier.size(Dimens.tamanoAvatar)
             )
 

@@ -27,11 +27,11 @@ import com.example.appconteo.ui.components.TarjetaSeccion
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
 import com.example.appconteo.viewmodel.RegistroViewModel
+import com.example.appconteo.ui.components.IndicadoresContrasena
 
 @Composable
 fun RegistroScreen(
-    onExisteCorreo: (String) -> Boolean,
-    onGuardarUsuario: (Usuario) -> Unit,
+    onGuardarUsuario: (Usuario, () -> Unit, (String) -> Unit) -> Unit,
     onRegistroExitoso: (Usuario) -> Unit,
     onIrLogin: () -> Unit,
     viewModel: RegistroViewModel = viewModel()
@@ -49,12 +49,12 @@ fun RegistroScreen(
         onTerminosCambia = viewModel::onTerminosCambia,
         onRegistrar = {
             viewModel.onRegistrar()?.let { usuario ->
-                if (onExisteCorreo(usuario.correo)) {
-                    viewModel.onCorreoRepetido()
-                } else {
-                    onGuardarUsuario(usuario)
-                    onRegistroExitoso(usuario)
-                }
+                // El servidor valida que el correo no exista y devuelve el error si falla.
+                onGuardarUsuario(
+                    usuario,
+                    { onRegistroExitoso(usuario) },
+                    viewModel::onErrorServidor
+                )
             }
         },
         onLimpiar = viewModel::onLimpiar,
@@ -133,8 +133,7 @@ fun RegistroContent(
 
                     // Indicadores dinámicos de requisitos de contraseña en tiempo real
                     AnimatedVisibility(visible = uiState.contrasena.isNotEmpty()) {
-                        IndicadoresContrasena(uiState = uiState)
-                    }
+                        IndicadoresContrasena(contrasena = uiState.contrasena)                    }
 
                     CampoTexto(
                         valor = uiState.palabraSecreta,
@@ -199,34 +198,6 @@ fun RegistroContent(
     }
 }
 
-@Composable
-private fun IndicadoresContrasena(uiState: RegistroUiState) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = Dimens.espacioMini),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Text("Requisitos de contraseña:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-
-        FilaCriterio(cumple = uiState.tieneMinimo8, texto = "Mínimo 8 caracteres")
-        FilaCriterio(cumple = uiState.tieneMayuscula, texto = "Al menos 1 mayúscula (A-Z)")
-        FilaCriterio(cumple = uiState.tieneMinuscula, texto = "Al menos 1 minúscula (a-z)")
-        FilaCriterio(cumple = uiState.tieneNumero, texto = "Al menos 1 número (0-9)")
-        FilaCriterio(cumple = uiState.tieneSimbolo, texto = "Al menos 1 símbolo (@#$%)")
-    }
-}
-
-@Composable
-private fun FilaCriterio(cumple: Boolean, texto: String) {
-    val color = if (cumple) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-    val icono = if (cumple) "✓ " else "✗ "
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(text = icono, color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
-        Text(text = texto, color = color, style = MaterialTheme.typography.labelSmall)
-    }
-}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

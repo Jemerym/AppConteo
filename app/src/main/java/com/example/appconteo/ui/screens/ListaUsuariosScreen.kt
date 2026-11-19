@@ -24,7 +24,7 @@ fun UsuariosScreen(
     filtro: String,
     onBuscar: (String) -> Unit,
     onEliminarUsuario: (Usuario) -> Unit,
-    onEditar: (Long) -> Unit,
+    onVerRegistros: (Long) -> Unit,
     onVolver: () -> Unit
 ) {
     var porEliminar by remember { mutableStateOf<Usuario?>(null) }
@@ -111,7 +111,7 @@ fun UsuariosScreen(
                 verticalArrangement = Arrangement.spacedBy(Dimens.espacioChico)
             ) {
                 items(observadores, key = { it.id }) { usuario ->
-                    Card(onClick = { onEditar(usuario.id) }) {
+                    Card(onClick = { onVerRegistros(usuario.id) }) {
                         ListItem(
                             overlineContent = { Text(usuario.rolNombre.ifEmpty { "Observador" }) },
                             leadingContent = {
@@ -156,7 +156,7 @@ private fun AdminPreview() {
             onBuscar = {},
             onEliminarUsuario = {},
             onVolver = {},
-            onEditar = {}
+            onVerRegistros = {}
         )
     }
 }

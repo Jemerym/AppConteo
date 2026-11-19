@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.R
 import com.example.appconteo.data.ConvertidorImagen
+import coil3.compose.AsyncImage
 import com.example.appconteo.model.CatalogosRincon
 import com.example.appconteo.model.Fechas
 import com.example.appconteo.model.ProgramarUiState
@@ -203,7 +204,6 @@ private fun SelectorObservadorSection(observadores: List<Usuario>, observadorSel
         ) {
             items(observadores, key = { "${it.id}_${it.correo}" }) { obs ->
                 val seleccionado = observadorSeleccionado?.id == obs.id
-                val avatarBitmap = remember(obs.avatar) { ConvertidorImagen.aBitmap(obs.avatar) }
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -219,9 +219,9 @@ private fun SelectorObservadorSection(observadores: List<Usuario>, observadorSel
                             .border(if (seleccionado) 3.dp else 1.dp, if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (avatarBitmap != null) {
-                            Image(
-                                bitmap = avatarBitmap.asImageBitmap(),
+                        if (obs.avatarUrl != null) {
+                            AsyncImage(
+                                model = obs.avatarUrl,
                                 contentDescription = obs.nombre,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()

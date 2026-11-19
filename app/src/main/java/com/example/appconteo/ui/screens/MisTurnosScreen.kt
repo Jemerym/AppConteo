@@ -1,6 +1,5 @@
 package com.example.appconteo.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,17 +8,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.appconteo.R
-import com.example.appconteo.data.UsuarioDbHelper
 import com.example.appconteo.model.CatalogosRincon
 import com.example.appconteo.model.Fechas
-import com.example.appconteo.model.Rol
-import com.example.appconteo.model.Sesion
+    import com.example.appconteo.model.Sesion
 import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.ui.components.TarjetaSeccion
@@ -40,7 +35,6 @@ fun MisTurnosScreen(
         onRecargarTurnos()
     }
 
-    val context = LocalContext.current
     var modoAdmin by remember { mutableStateOf(false) }
     var turnoParaEliminar by remember { mutableStateOf<Turno?>(null) }
 
@@ -218,9 +212,7 @@ fun MisTurnosScreen(
             confirmButton = {
                 TextButton(onClick = {
                     onEliminarTurno(turno.id)
-                    onRecargarTurnos()
                     turnoParaEliminar = null
-                    Toast.makeText(context, "Turno eliminado con éxito", Toast.LENGTH_SHORT).show()
                 }) {
                     Text("Eliminar", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }

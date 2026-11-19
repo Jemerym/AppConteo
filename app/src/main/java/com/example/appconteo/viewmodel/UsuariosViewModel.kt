@@ -2,20 +2,29 @@ package com.example.appconteo.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.appconteo.data.SesionPreferencias
 import com.example.appconteo.data.UsuarioDbHelper
+import com.example.appconteo.data.UsuarioRepository
+import com.example.appconteo.model.CambiosPerfil
 import com.example.appconteo.model.Fechas
 import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Rol
 import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
-import com.example.appconteo.model.Utilidades
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class UsuariosViewModel(application: Application) : AndroidViewModel(application) {
 
+    // USUARIOS -> ahora vienen del microservicio usuarios-service (UsuarioRepository).
+    private val repo = UsuarioRepository()
+
+    // SQLite se mantiene SOLO para turnos e historial (todavía no tienen microservicio)
+    // y como "espejo" local de los usuarios (ver espejar()).
     private val db = UsuarioDbHelper(application)
     private val sesion = SesionPreferencias(application)
 
@@ -42,18 +51,85 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     val esAdministrador: Boolean
         get() = _usuarioActual.value?.rolId == Rol.ID_ADMINISTRADOR
 
-    init {
-        recargar()
-    }
+    // Evita enviar dos veces la misma acción si el usuario toca el botón repetido.
+    private var accionEnCurso = false
 
-    fun recargar() {
+    init {
+        // El usuario de la sesión se lee del espejo local para decidir la pantalla inicial al instante;
+        // luego se refresca desde el servidor.
         val idSesion = sesion.leer()
         _usuarioActual.value = if (idSesion != -1L) db.buscarPorId(idSesion) else null
+        recargar()
+        if (idSesion != -1L) recargarUsuarioActual()
+    }
 
-        val textoFiltro = _filtro.value.trim()
-        _usuarios.value = if (textoFiltro.isEmpty()) db.listarUsuarios() else db.buscarUsuarios(textoFiltro)
+    // ---------- helpers de red ----------
+
+    /** Lanza una llamada de red en segundo plano. Si falla, avisa con onError (por defecto, un Toast). */
+    private fun ejecutar(
+        onError: (String) -> Unit = { _mensaje.value = "❌ $it" },
+        bloque: suspend () -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                bloque()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                onError(e.message ?: "Error inesperado")
+            }
+        }
+    }
+
+    /** Igual que ejecutar, pero ignora un segundo toque mientras la acción anterior sigue en curso. */
+    private fun accion(onError: (String) -> Unit, bloque: suspend () -> Unit) {
+        if (accionEnCurso) return
+        accionEnCurso = true
+        ejecutar(onError) {
+            try {
+                bloque()
+            } finally {
+                accionEnCurso = false
+            }
+        }
+    }
+
+    // Copia los usuarios del servidor a SQLite para que turnos e historial (que aún son locales)
+    // puedan seguir referenciándolos. Se elimina cuando existan turnos-service y registros-service.
+    private fun espejar(lista: List<Usuario>) {
+        db.sincronizarUsuarios(lista)
+    }
+
+    // ---------- carga de datos ----------
+
+    fun recargar() {
         _historial.value = db.listarHistorial()
         _turnos.value = db.listarTurnos()
+        cargarUsuarios()
+    }
+
+    // Solo el administrador necesita la lista completa de usuarios.
+    private fun cargarUsuarios() {
+        if (!esAdministrador) return
+        ejecutar {
+            val lista = repo.listar(_filtro.value.trim())
+            espejar(lista)
+            _usuarios.value = lista
+        }
+    }
+
+    fun recargarUsuarioActual() {
+        val idSesion = sesion.leer()
+        if (idSesion == -1L) {
+            _usuarioActual.value = null
+            return
+        }
+        // En silencio: si no hay red se conserva el usuario que ya está en pantalla.
+        ejecutar(onError = { if (it == "Usuario no encontrado") cerrarSesion() }) {
+            val u = repo.obtener(idSesion)
+            espejar(listOf(u))
+            _usuarioActual.value = u
+        }
     }
 
     fun limpiarMensaje() {
@@ -62,14 +138,85 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun buscar(texto: String) {
         _filtro.value = texto
-        recargar()
+        cargarUsuarios()
     }
 
-    fun actualizar(editado: Usuario) {
-        val filas = db.actualizarUsuario(editado)
-        if (filas > 0) {
-            _mensaje.value = "✅ Usuario '${editado.nombre}' actualizado"
+    // Usado por ProgramarScreen (modo edición). Busca primero en la lista ya descargada.
+    fun buscarPorId(id: Long): Usuario? = _usuarios.value.find { it.id == id } ?: db.buscarPorId(id)
+
+    // ---------- sesión y cuenta ----------
+
+    fun iniciarSesion(correo: String, contrasena: String, onExito: () -> Unit, onError: (String) -> Unit) {
+        accion(onError) {
+            val usuario = repo.iniciarSesion(correo, contrasena)
+            espejar(listOf(usuario))
+            _usuarioActual.value = usuario
+            sesion.guardar(usuario.id)
             recargar()
+            onExito()
+        }
+    }
+
+    fun cerrarSesion() {
+        _usuarioActual.value = null
+        _usuarios.value = emptyList()
+        sesion.borrar()
+    }
+
+    fun registrar(usuario: Usuario, onExito: () -> Unit, onError: (String) -> Unit) {
+        accion(onError) {
+            repo.registrar(usuario)
+            _mensaje.value = "✅ Usuario registrado con éxito"
+            onExito()
+        }
+    }
+
+    fun restablecerClave(
+        correo: String,
+        palabraSecreta: String,
+        nuevaClave: String,
+        onExito: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        accion(onError) {
+            repo.recuperarClave(correo.trim(), palabraSecreta.trim(), nuevaClave)
+            _mensaje.value = "✅ Clave actualizada con éxito"
+            onExito()
+        }
+    }
+
+    fun actualizarPerfil(
+        original: Usuario,
+        cambios: CambiosPerfil,
+        onExito: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        accion(onError) {
+            // 1) El servidor confirma que la contraseña actual es correcta.
+            try {
+                repo.iniciarSesion(original.correo, cambios.contrasenaActual)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                val sinRed = e.message?.startsWith("No se pudo conectar") == true
+                throw if (sinRed) e else Exception("Contraseña actual incorrecta")
+            }
+            // 2) Nombre.
+            val actualizado = repo.actualizar(original.copy(nombre = cambios.nombre))
+            // 3) Contraseña nueva (opcional).
+            cambios.nuevaContrasena?.takeIf { it.isNotBlank() }?.let { nueva ->
+                repo.cambiarContrasena(original.id, cambios.contrasenaActual, nueva)
+            }
+            espejar(listOf(actualizado))
+            _usuarioActual.value = actualizado
+            _mensaje.value = "✅ Usuario '${actualizado.nombre}' actualizado"
+            onExito()
+        }
+    }
+
+    fun actualizarAvatar(id: Long, avatar: ByteArray) {
+        ejecutar {
+            _usuarioActual.value = repo.subirAvatar(id, avatar)
+            _mensaje.value = "✅ Foto de perfil actualizada"
         }
     }
 
@@ -78,38 +225,15 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
             _mensaje.value = "⚠️ Acción no permitida"
             return
         }
-        val filas = db.eliminarUsuario(usuario.id)
-        if (filas > 0) {
+        ejecutar {
+            repo.eliminar(usuario.id)
+            db.eliminarUsuario(usuario.id)   // espejo local (borra también sus turnos, como antes)
             _mensaje.value = "✅ Usuario '${usuario.nombre}' eliminado"
             if (_usuarioActual.value?.id == usuario.id) cerrarSesion() else recargar()
         }
     }
 
-    fun cerrarSesion() {
-        _usuarioActual.value = null
-        sesion.borrar()
-    }
-
-    override fun onCleared() {
-        db.close()
-    }
-
-    fun iniciarSesion(correo: String, contrasena: String): Boolean {
-        val usuarioEncontrado = db.buscarPorCorreo(correo)
-        val hashInput = Utilidades.hashContrasena(contrasena)
-        if (usuarioEncontrado != null && usuarioEncontrado.contrasena == hashInput) {
-            _usuarioActual.value = usuarioEncontrado
-            sesion.guardar(usuarioEncontrado.id)
-            recargar()
-            return true
-        }
-        return false
-    }
-
-    fun recargarUsuarioActual() {
-        val idSesion = sesion.leer()
-        _usuarioActual.value = if (idSesion != -1L) db.buscarPorId(idSesion) else null
-    }
+    // ---------- HISTORIAL (sigue en SQLite hasta crear registros-service) ----------
 
     fun registrarEnHistorial(
         observadorNombre: String,
@@ -158,6 +282,8 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         _mensaje.value = "✅ Registro eliminado"
     }
 
+    // ---------- TURNOS (siguen en SQLite hasta crear turnos-service) ----------
+
     fun recargarTurnos() {
         _turnos.value = db.listarTurnos()
     }
@@ -170,40 +296,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         db.eliminarTurno(idTurno)
         _mensaje.value = "✅ Turno eliminado con éxito"
         recargarTurnos()
-    }
-
-    fun recuperarClave(correo: String, palabraSecreta: String, nuevaClave: String): Boolean {
-        val u = db.buscarPorCorreo(correo.trim()) ?: return false
-        if (!u.palabraSecreta.equals(palabraSecreta.trim(), ignoreCase = true)) return false
-        val actualizado = db.actualizarUsuario(u.copy(contrasena = Utilidades.hashContrasena(nuevaClave))) > 0
-        if (actualizado) {
-            _mensaje.value = "✅ Clave actualizada con éxito"
-        }
-        return actualizado
-    }
-
-    fun buscarPorId(id: Long): Usuario? = db.buscarPorId(id)
-
-    fun actualizarAvatar(id: Long, avatar: ByteArray): Int {
-        val res = db.actualizarAvatar(id, avatar)
-        if (res > 0) {
-            _mensaje.value = "✅ Foto de perfil actualizada"
-            recargarUsuarioActual()
-        }
-        return res
-    }
-
-    fun existeCorreo(correo: String): Boolean = db.buscarPorCorreo(correo) != null
-
-    fun insertarUsuario(usuario: Usuario): Boolean {
-        val id = db.insertarUsuario(usuario)
-        if (id != -1L) {
-            _mensaje.value = "✅ Usuario registrado con éxito"
-            recargar()
-            return true
-        }
-        _mensaje.value = "❌ Error al registrar usuario en la base de datos"
-        return false
     }
 
     fun insertarTurno(idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Long {
@@ -237,10 +329,11 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     fun haySolapamientoTurno(idUsuario: Long, acceso: Int, fecha: String, inicio: String, fin: String, excluirIdTurno: Long = 0L): Boolean =
         db.haySolapamientoTurno(idUsuario, acceso, fecha, inicio, fin, excluirIdTurno)
 
-    fun listarHistorialPorUsuarioPaginado(usuarioId: Long, fechaFiltro: String? = null, limite: Int = 15): List<HistorialRegistros> =
-        db.listarHistorialPorUsuarioPaginado(usuarioId, fechaFiltro, limite)
-
     fun obtenerTurnoActual(idUsuario: Long): Turno? {
         return db.obtenerTurnoActualObjeto(idUsuario, Fechas.hoy(), Fechas.horaActual())
+    }
+
+    override fun onCleared() {
+        db.close()
     }
 }

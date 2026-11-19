@@ -1,6 +1,5 @@
 package com.example.appconteo.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,7 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -30,11 +28,12 @@ fun VerRegistrosScreen(
     historial: List<HistorialRegistros>,
     usuarioActual: Usuario? = null,
     turnoIdFiltro: Long? = null,
+    usuarioIdFiltro: Long? = null,
+    tituloUsuario: String? = null,
     onVolver: () -> Unit,
     onAnularRegistro: ((Long) -> Unit)? = null,
     onModificarRegistro: ((id: Long, acceso: Int, grupo: String, edad: String) -> Unit)? = null
 ) {
-    val context = LocalContext.current
     var fechaFiltro by remember { mutableStateOf("") }
     var accesoFiltro by remember { mutableStateOf<Int?>(null) }
     var tipoFiltro by remember { mutableStateOf<String?>(null) }
@@ -43,27 +42,32 @@ fun VerRegistrosScreen(
     var registroParaEliminar by remember { mutableStateOf<HistorialRegistros?>(null) }
 
     val accesosInfo = remember { CatalogosRincon.accesosInfo }
-
     val esAdmin = usuarioActual?.rolId == Rol.ID_ADMINISTRADOR
     val idActual = usuarioActual?.id ?: -1L
-    val nombreActual = usuarioActual?.nombre ?: ""
 
-    val filtrados = remember(historial, turnoIdFiltro, fechaFiltro, accesoFiltro, tipoFiltro, esAdmin, idActual, nombreActual) {
+    val filtrados = remember(historial, turnoIdFiltro, usuarioIdFiltro, fechaFiltro, accesoFiltro, tipoFiltro, esAdmin, idActual) {
         historial.filter { item ->
-            val coincideRol = esAdmin || item.usuarioId == idActual || (nombreActual.isNotEmpty() && item.observadorNombre.equals(nombreActual, ignoreCase = true))
+            val coincideRol = esAdmin || item.usuarioId == idActual
+            val coincideUsuario = usuarioIdFiltro == null || item.usuarioId == usuarioIdFiltro
             val coincideTurno = turnoIdFiltro == null || turnoIdFiltro <= 0L || item.idTurno == turnoIdFiltro
             val coincideFecha = fechaFiltro.isBlank() || item.fecha.contains(fechaFiltro.trim())
             val coincideAcceso = accesoFiltro == null || item.acceso == accesoFiltro
             val coincideTipo = tipoFiltro.isNullOrBlank() || item.tipoRegistro.contains(tipoFiltro!!, ignoreCase = true)
 
-            coincideRol && coincideTurno && coincideFecha && coincideAcceso && coincideTipo
+            coincideRol && coincideUsuario && coincideTurno && coincideFecha && coincideAcceso && coincideTipo
         }
+    }
+
+    val titulo = when {
+        tituloUsuario != null -> "Registros de $tituloUsuario"
+        turnoIdFiltro != null && turnoIdFiltro > 0L -> "Registros de este Turno"
+        else -> "Registros de Aforo"
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (turnoIdFiltro != null && turnoIdFiltro > 0L) "Registros de este Turno" else "Registros de Aforo", fontWeight = FontWeight.Bold) },
+                title = { Text(titulo, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onVolver) {
                         Icon(painterResource(R.drawable.ic_volver), contentDescription = "Volver")
@@ -217,7 +221,6 @@ fun VerRegistrosScreen(
         }
     }
 
-    // Reutilizamos el RegistroAforoDialog existente precargado con los datos actuales
     registroParaEditar?.let { reg ->
         RegistroAforoDialog(
             initialTipoGrupo = reg.tipoGrupo,
@@ -227,7 +230,6 @@ fun VerRegistrosScreen(
             onGuardarYCerrar = { tipoGrupo, rangoEdad ->
                 onModificarRegistro?.invoke(reg.id, reg.acceso, tipoGrupo, rangoEdad)
                 registroParaEditar = null
-                Toast.makeText(context, "Registro actualizado con éxito", Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -242,7 +244,6 @@ fun VerRegistrosScreen(
                 TextButton(onClick = {
                     onAnularRegistro?.invoke(reg.id)
                     registroParaEliminar = null
-                    Toast.makeText(context, "Registro anulado con éxito", Toast.LENGTH_SHORT).show()
                 }) {
                     Text("Anular / Eliminar", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }

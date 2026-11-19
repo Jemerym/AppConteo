@@ -168,8 +168,7 @@ class UsuarioDbHelper(context: Context) :
         contrasena = c.texto(USU_CONTRASENA),
         palabraSecreta = c.textoONulo(USU_PALABRA_SECRETA) ?: "",
         rolId = c.largo(USU_ROL),
-        rolNombre = c.texto(ROL_NOMBRE),
-        avatar = c.blobONulo(USU_AVATAR)
+        rolNombre = c.texto(ROL_NOMBRE)
     )
 
     private fun leerHistorial(c: Cursor) = HistorialRegistros(
@@ -200,6 +199,33 @@ class UsuarioDbHelper(context: Context) :
     fun insertarUsuario(usuario: Usuario): Long =
         writableDatabase.insert(TABLA_USUARIOS, null, valoresDe(usuario))
 
+    // ESPEJO LOCAL: copia a SQLite los usuarios que vienen del servidor (mismo id).
+    // Turnos e historial siguen siendo locales y tienen clave foránea a esta tabla,
+    // así que necesitan que el usuario exista aquí. Se usa UPDATE y luego INSERT (nunca REPLACE,
+    // porque REPLACE borra la fila y, con ON DELETE CASCADE, también borraría sus turnos).
+    // Esto se elimina cuando existan turnos-service y registros-service.
+    fun sincronizarUsuarios(usuarios: List<Usuario>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            for (u in usuarios) {
+                val valores = ContentValues().apply {
+                    put(USU_NOMBRE, u.nombre)
+                    put(USU_CORREO, u.correo)
+                    put(USU_ROL, u.rolId)
+                }
+                val filas = db.update(TABLA_USUARIOS, valores, "$USU_ID = ?", arrayOf(u.id.toString()))
+                if (filas == 0) {
+                    valores.put(USU_ID, u.id)
+                    db.insert(TABLA_USUARIOS, null, valores)
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     fun listarRoles(): List<Rol> =
         consultar("SELECT $ROL_ID, $ROL_NOMBRE FROM $TABLA_ROLES ORDER BY $ROL_ID", null, ::leerRol)
 
@@ -220,13 +246,6 @@ class UsuarioDbHelper(context: Context) :
 
     fun buscarPorCorreo(correo: String): Usuario? =
         consultar("$SQL_SELECT_USUARIOS WHERE u.$USU_CORREO = ? COLLATE NOCASE", arrayOf(correo.trim()), ::leerUsuario).firstOrNull()
-
-    fun buscarPorCorreoYPalabra(correo: String, palabraSecreta: String): Usuario? =
-        consultar(
-            "$SQL_SELECT_USUARIOS WHERE u.$USU_CORREO = ? COLLATE NOCASE AND u.$USU_PALABRA_SECRETA = ?",
-            arrayOf(correo.trim(), palabraSecreta.trim()),
-            ::leerUsuario
-        ).firstOrNull()
 
     fun actualizarUsuario(usuario: Usuario): Int =
         writableDatabase.update(TABLA_USUARIOS, valoresDe(usuario), "$USU_ID = ?", arrayOf(usuario.id.toString()))
@@ -300,24 +319,6 @@ class UsuarioDbHelper(context: Context) :
     fun eliminarHistorial(idHistorial: Long): Int =
         writableDatabase.delete(TABLA_HISTORIAL, "$HIST_ID = ?", arrayOf(idHistorial.toString()))
 
-    fun listarHistorialPorTurno(idTurno: Long): List<HistorialRegistros> =
-        consultar("SELECT * FROM $TABLA_HISTORIAL WHERE $HIST_TURNO_ID = ? ORDER BY $HIST_ID DESC", arrayOf(idTurno.toString()), ::leerHistorial)
-
-    fun listarHistorialPorUsuarioPaginado(
-        usuarioId: Long,
-        fechaFiltro: String? = null,
-        limite: Int = 15
-    ): List<HistorialRegistros> {
-        val where = StringBuilder("$HIST_USUARIO_ID = ?")
-        val args = mutableListOf(usuarioId.toString())
-        if (!fechaFiltro.isNullOrBlank()) {
-            where.append(" AND $HIST_FECHA LIKE ?")
-            args.add("%${fechaFiltro.trim()}%")
-        }
-        val query = "SELECT * FROM $TABLA_HISTORIAL WHERE $where ORDER BY $HIST_ID DESC LIMIT ?"
-        args.add(limite.toString())
-        return consultar(query, args.toTypedArray(), ::leerHistorial)
-    }
 
 
 

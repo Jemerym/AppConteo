@@ -1,9 +1,10 @@
 package com.example.appconteo.viewmodel
 
 import androidx.lifecycle.ViewModel
+import com.example.appconteo.model.CambiosPerfil
 import com.example.appconteo.model.EditarPerfilUiState
 import com.example.appconteo.model.Usuario
-import com.example.appconteo.model.Utilidades
+import com.example.appconteo.model.Validaciones
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,10 +52,11 @@ class EditarPerfilViewModel : ViewModel() {
         _uiState.update { it.copy(confirmarVisible = !it.confirmarVisible) }
     }
 
-    fun validarYGuardar(usuarioOriginal: Usuario): Usuario? {
+    // CAMBIO: antes comparaba el hash de la contraseña actual aquí, en la app.
+    // Ahora solo valida el formato; el servidor es quien verifica que la contraseña actual sea correcta.
+    fun validarYGuardar(): CambiosPerfil? {
         val estado = _uiState.value
         val regexNombre = Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$")
-        val regexContrasena = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#\$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>?]).{8,}\$")
 
         var errorNombre: String? = null
         var errorActual: String? = null
@@ -70,25 +72,19 @@ class EditarPerfilViewModel : ViewModel() {
             valido = false
         }
 
-        val hashInput = Utilidades.hashContrasena(estado.contrasenaActual)
         if (estado.contrasenaActual.isBlank()) {
             errorActual = "Ingresa tu contraseña actual"
             valido = false
-        } else if (usuarioOriginal.contrasena != estado.contrasenaActual && usuarioOriginal.contrasena != hashInput) {
-            errorActual = "Contraseña actual incorrecta"
-            valido = false
         }
 
-        var nuevaContra = usuarioOriginal.contrasena
         if (estado.nuevaContrasena.isNotBlank()) {
-            if (!estado.nuevaContrasena.matches(regexContrasena)) {
-                errorNueva = "Mínimo 8 caracteres, 1 Mayúscula, 1 Minúscula, 1 Número y 1 Carácter Especial"
+            val errorPolitica = Validaciones.contrasena(estado.nuevaContrasena)
+            if (errorPolitica != null) {
+                errorNueva = errorPolitica
                 valido = false
             } else if (estado.nuevaContrasena != estado.confirmarNuevaContrasena) {
                 errorConfirmar = "Las contraseñas no coinciden"
                 valido = false
-            } else {
-                nuevaContra = Utilidades.hashContrasena(estado.nuevaContrasena)
             }
         }
 
@@ -104,9 +100,21 @@ class EditarPerfilViewModel : ViewModel() {
             return null
         }
 
-        return usuarioOriginal.copy(
+        return CambiosPerfil(
             nombre = estado.nombre.trim(),
-            contrasena = nuevaContra
+            contrasenaActual = estado.contrasenaActual,
+            nuevaContrasena = estado.nuevaContrasena.ifBlank { null }
         )
+    }
+
+    // Muestra el error que devolvió el servidor junto al campo que corresponde.
+    fun onErrorServidor(mensaje: String) {
+        _uiState.update {
+            when {
+                mensaje.contains("contraseña actual", ignoreCase = true) -> it.copy(errorContrasenaActual = mensaje)
+                mensaje.contains("contraseña", ignoreCase = true) -> it.copy(errorNuevaContrasena = mensaje)
+                else -> it.copy(errorNombre = mensaje)
+            }
+        }
     }
 }

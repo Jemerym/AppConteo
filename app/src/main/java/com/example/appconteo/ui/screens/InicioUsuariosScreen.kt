@@ -148,7 +148,6 @@ fun InicioUsuariosContent(
     var mostrarDialogoCerrarSesion by remember { mutableStateOf(false) }
     var esConBoleta by remember { mutableStateOf(false) }
     val nombreObservador = usuario?.nombre ?: "Observador"
-    val fotoBitmap = remember(usuario?.avatar) { ConvertidorImagen.aBitmap(usuario?.avatar) }
 
     val tieneTurnoActivo = accesoActual != -1
     val boletasEscaneadas = remember(historial, usuario) {
@@ -241,7 +240,7 @@ fun InicioUsuariosContent(
             ) {
                 TurnoActivoCard(
                     nombre = nombreObservador,
-                    fotoBitmap = fotoBitmap,
+                    fotoUrl = usuario?.avatarUrl,
                     tieneTurnoActivo = tieneTurnoActivo,
                     nombrePuerta = nombrePuerta
                 )
@@ -364,7 +363,7 @@ private fun InicioUsuariosTopBar(onAbrirMenu: () -> Unit) {
 @Composable
 private fun TurnoActivoCard(
     nombre: String,
-    fotoBitmap: Bitmap?,
+    fotoUrl: String?,
     tieneTurnoActivo: Boolean,
     nombrePuerta: String
 ) {
@@ -374,7 +373,7 @@ private fun TurnoActivoCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)
         ) {
-            FotoPerfil(fotoBitmap = fotoBitmap, modifier = Modifier.size(60.dp))
+            FotoPerfil(fotoUrl = fotoUrl, modifier = Modifier.size(60.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = nombre, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 if (tieneTurnoActivo) {

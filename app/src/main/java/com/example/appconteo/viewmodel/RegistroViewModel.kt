@@ -5,6 +5,7 @@ import com.example.appconteo.model.RegistroUiState
 import com.example.appconteo.model.RolEnum
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.model.Utilidades
+import com.example.appconteo.model.Validaciones
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,8 +40,15 @@ class RegistroViewModel : ViewModel() {
         _uiState.update { it.copy(aceptaTerminos = acepta, errorTerminos = null) }
     }
 
-    fun onCorreoRepetido() {
-        _uiState.update { it.copy(errorCorreo = "Este correo ya se encuentra registrado") }
+    // Muestra el error que devolvió el servidor junto al campo que corresponde.
+    fun onErrorServidor(mensaje: String) {
+        _uiState.update {
+            when {
+                mensaje.contains("correo", ignoreCase = true) -> it.copy(errorCorreo = mensaje)
+                mensaje.contains("contraseña", ignoreCase = true) -> it.copy(errorContrasena = mensaje)
+                else -> it.copy(errorTerminos = mensaje)   // error general (ej: sin conexión)
+            }
+        }
     }
 
     fun onRegistrar(): Usuario? {
@@ -63,9 +71,9 @@ class RegistroViewModel : ViewModel() {
             errCorreo = "Ingresa un correo válido"
             valido = false
         }
-
-        if (!estado.contrasenaValida) {
-            errContrasena = "La contraseña debe cumplir todos los requisitos de seguridad"
+        val errorPolitica = Validaciones.contrasena(estado.contrasena)
+        if (errorPolitica != null) {
+            errContrasena = errorPolitica
             valido = false
         }
 
@@ -95,7 +103,7 @@ class RegistroViewModel : ViewModel() {
         return Usuario(
             nombre = estado.nombre.trim(),
             correo = correoLimpio,
-            contrasena = Utilidades.hashContrasena(estado.contrasena.trim()),
+            contrasena = estado.contrasena,   // CAMBIO: va en texto plano; el servidor la hashea (BCrypt)
             palabraSecreta = estado.palabraSecreta.trim(),
             rolId = RolEnum.OBSERVADOR.id,
             rolNombre = RolEnum.OBSERVADOR.nombre

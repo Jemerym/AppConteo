@@ -25,7 +25,11 @@ class LoginViewModel : ViewModel() {
         _uiState.update { it.copy(contrasenaVisible = !it.contrasenaVisible) }
     }
 
-    fun onLogin(iniciarSesion: (String, String) -> Boolean): Boolean {
+    // CAMBIO: antes iniciarSesion devolvía Boolean al instante (SQLite).
+    // Ahora la respuesta del servidor tarda, así que se avisa por callbacks:
+    //   onExito -> marca loginExitoso (la pantalla navega al observarlo)
+    //   onError -> muestra el mensaje que mandó el servidor
+    fun onLogin(iniciarSesion: (String, String, () -> Unit, (String) -> Unit) -> Unit) {
         val estado = _uiState.value
         val errorCorreo = when {
             estado.correo.isBlank() -> "El correo es obligatorio"
@@ -38,21 +42,14 @@ class LoginViewModel : ViewModel() {
             _uiState.update {
                 it.copy(errorCorreo = errorCorreo, errorContrasena = errorContrasena)
             }
-            return false
+            return
         }
-        val exito = iniciarSesion(estado.correo, estado.contrasena)
-        if (exito) {
-            _uiState.update { it.copy(loginExitoso = true) }
-            return true
-        } else {
-            val mensajeError = "Correo o contraseña incorrectos"
-            _uiState.update {
-                it.copy(
-                    errorCorreo = mensajeError,
-                    errorContrasena = mensajeError
-                )
-            }
-            return false
-        }
+
+        iniciarSesion(
+            estado.correo,
+            estado.contrasena,
+            { _uiState.update { it.copy(loginExitoso = true) } },
+            { mensaje -> _uiState.update { it.copy(errorCorreo = mensaje, errorContrasena = mensaje) } }
+        )
     }
 }

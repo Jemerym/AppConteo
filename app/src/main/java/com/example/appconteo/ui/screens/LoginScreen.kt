@@ -1,6 +1,5 @@
 package com.example.appconteo.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,7 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,11 +20,10 @@ import com.example.appconteo.ui.components.CampoTexto
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
 import com.example.appconteo.viewmodel.LoginViewModel
-import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @Composable
 fun LoginScreen(
-    onIniciarSesion: (String, String) -> Boolean,
+    onIniciarSesion: (String, String, () -> Unit, (String) -> Unit) -> Unit,
     onLoginExitoso: () -> Unit,
     onIrRegistro: () -> Unit,
     onIrRecuperarClave: () -> Unit = {},
@@ -34,19 +31,18 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val contex = LocalContext.current
+
+    // La respuesta del servidor llega después: se navega cuando el estado marca loginExitoso.
+    LaunchedEffect(uiState.loginExitoso) {
+        if (uiState.loginExitoso) onLoginExitoso()
+    }
 
     LoginContent(
         uiState = uiState,
         onCorreoLogin = viewModel::onCorreoLogin,
         onContrasenaLogin = viewModel::onContrasenaLogin,
         onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
-        onLogin = {
-            if (viewModel.onLogin(onIniciarSesion)) {
-                Toast.makeText(contex, "Login exitoso", Toast.LENGTH_SHORT).show()
-                onLoginExitoso()
-            }
-        },
+        onLogin = { viewModel.onLogin(onIniciarSesion) },
         onIrRegistro = onIrRegistro,
         onIrRecuperarClave = onIrRecuperarClave,
         snackbarHostState = snackbarHostState

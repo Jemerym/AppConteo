@@ -16,11 +16,8 @@ sealed class Ruta(val ruta: String) {
         fun crear(turnoId: Long = 0L) = "programar_sesion/$turnoId"
     }
 
-    data object VerRegistros : Ruta("ver_registros?turnoId={turnoId}") {
-        fun crear(turnoId: Long = 0L) = "ver_registros?turnoId=$turnoId"
-    }
-
-    data object DetalleUsuario : Ruta("detalle_usuario/{usuarioId}") {
-        fun crear(id: Long) = "detalle_usuario/$id"
+    data object VerRegistros : Ruta("ver_registros?turnoId={turnoId}&usuarioId={usuarioId}") {
+        fun crear(turnoId: Long = 0L, usuarioId: Long = 0L) =
+            "ver_registros?turnoId=$turnoId&usuarioId=$usuarioId"
     }
 }

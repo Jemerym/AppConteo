@@ -16,13 +16,14 @@ import com.example.appconteo.ui.components.CampoContrasena
 import com.example.appconteo.ui.components.CampoTexto
 import com.example.appconteo.ui.theme.Dimens
 import com.example.appconteo.viewmodel.EditarPerfilViewModel
+import com.example.appconteo.model.CambiosPerfil
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditarPerfilScreen(
     usuario: Usuario,
     onVolver: () -> Unit,
-    onGuardar: (Usuario) -> Unit,
+    onGuardar: (CambiosPerfil, () -> Unit, (String) -> Unit) -> Unit,
     viewModel: EditarPerfilViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -43,9 +44,9 @@ fun EditarPerfilScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            val usuarioModificado = viewModel.validarYGuardar(usuario)
-                            if (usuarioModificado != null) {
-                                onGuardar(usuarioModificado)
+                            // Valida el formato aquí; el servidor verifica la contraseña actual.
+                            viewModel.validarYGuardar()?.let { cambios ->
+                                onGuardar(cambios, onVolver, viewModel::onErrorServidor)
                             }
                         },
                         enabled = uiState.nombre.isNotBlank() && uiState.contrasenaActual.isNotBlank()
