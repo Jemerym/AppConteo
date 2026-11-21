@@ -30,9 +30,15 @@ import com.example.appconteo.viewmodel.RecuperarClaveViewModel
 fun RecuperarClaveScreen(
     onRestablecerClave: (String, String, String, () -> Unit, (String) -> Unit) -> Unit,
     onVolverLogin: () -> Unit,
+    onRecuperacionExitosa: () -> Unit,
     viewModel: RecuperarClaveViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Cuando el servidor confirma el cambio, se vuelve solo al login
+    LaunchedEffect(uiState.exito) {
+        if (uiState.exito) onRecuperacionExitosa()
+    }
 
     RecuperarClaveContent(
         uiState = uiState,

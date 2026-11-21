@@ -16,10 +16,11 @@ class ProgramarViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ProgramarUiState())
     val uiState: StateFlow<ProgramarUiState> = _uiState.asStateFlow()
 
-    fun cargarTurno(turnoId: Long, buscarTurno: (Long) -> Turno?, buscarUsuario: (Long) -> Usuario?) {
+    // Al editar se llama dos veces: primero con turno = null (fija el id al instante, para que un toque
+    // rápido en "Programar" no cree un turno nuevo) y luego con el turno traído del servidor.
+    fun cargarTurno(turnoId: Long, turno: Turno?, buscarUsuario: (Long) -> Usuario?) {
         turnoIdEditando = turnoId
         if (turnoId > 0L) {
-            val turno = buscarTurno(turnoId)
             if (turno != null) {
                 val observador = buscarUsuario(turno.usuarioId)
                 _uiState.update {
@@ -51,41 +52,37 @@ class ProgramarViewModel : ViewModel() {
         _uiState.update { it.copy(tramoSeleccionado = tramo, mensajeError = null) }
     }
 
+    private var guardando = false
+
+    // CAMBIO: antes recibía 3 funciones sincrónicas (solapamiento, actualizar, insertar) y devolvía Boolean.
+    // Ahora recibe UNA función que responde por callbacks: el servidor valida los conflictos (409)
+    // y su mensaje se muestra tal cual.
     fun programarTurno(
-        verificarSolapamiento: (Long, Int, String, String, String, Long) -> Boolean,
-        actualizar: (Long, Long, Int, String, String, String) -> Int,
-        insertar: (Long, Int, String, String, String) -> Long
-    ): Boolean {
+        guardar: (Long, Long, Int, String, String, String, () -> Unit, (String) -> Unit) -> Unit
+    ) {
         val estado = _uiState.value
         val obs = estado.observadorSeleccionado ?: run {
             _uiState.update { it.copy(mensajeError = "⚠️ Selecciona un observador.") }
-            return false
+            return
         }
+        if (guardando) return   // ignora un segundo toque mientras responde el servidor
+        guardando = true
 
-        val fechaCalculada = Fechas.conOffset(estado.diasOffset)
-        val horaInicio = estado.tramoSeleccionado.first
-        val horaFin = estado.tramoSeleccionado.second
-
-        if (verificarSolapamiento(obs.id, estado.accesoSeleccionado, fechaCalculada, horaInicio, horaFin, turnoIdEditando)) {
-            _uiState.update { it.copy(mensajeError = "⚠️ Conflicto: El guardia ya está ocupado o esta puerta ya tiene un turno a esa hora.") }
-            return false
-        }
-
-        if (turnoIdEditando > 0L) {
-            val exito = actualizar(turnoIdEditando, obs.id, estado.accesoSeleccionado, horaInicio, horaFin, fechaCalculada)
-            if (exito <= 0) {
-                _uiState.update { it.copy(mensajeError = "Error al actualizar el turno en la base de datos.") }
-                return false
+        guardar(
+            turnoIdEditando,
+            obs.id,
+            estado.accesoSeleccionado,
+            estado.tramoSeleccionado.first,
+            estado.tramoSeleccionado.second,
+            Fechas.conOffset(estado.diasOffset),
+            {
+                guardando = false
+                _uiState.update { it.copy(asignacionExitosa = true, mensajeError = null) }
+            },
+            { mensaje ->
+                guardando = false
+                _uiState.update { it.copy(mensajeError = "⚠️ $mensaje") }
             }
-        } else {
-            val idNuevo = insertar(obs.id, estado.accesoSeleccionado, horaInicio, horaFin, fechaCalculada)
-            if (idNuevo == -1L) {
-                _uiState.update { it.copy(mensajeError = "Error al guardar el turno en la base de datos.") }
-                return false
-            }
-        }
-
-        _uiState.update { it.copy(asignacionExitosa = true, mensajeError = null) }
-        return true
+        )
     }
 }

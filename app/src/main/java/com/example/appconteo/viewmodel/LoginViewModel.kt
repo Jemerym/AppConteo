@@ -25,6 +25,16 @@ class LoginViewModel : ViewModel() {
         _uiState.update { it.copy(contrasenaVisible = !it.contrasenaVisible) }
     }
 
+    // Borra solo los mensajes de error (se usa al salir hacia Registro o Recuperar clave)
+    fun limpiarErrores() {
+        _uiState.update { it.copy(errorCorreo = null, errorContrasena = null, loginExitoso = false) }
+    }
+
+    // Deja la pantalla como nueva: campos vacíos y sin errores
+    fun limpiar() {
+        _uiState.value = LoginUiState()
+    }
+
     // CAMBIO: antes iniciarSesion devolvía Boolean al instante (SQLite).
     // Ahora la respuesta del servidor tarda, así que se avisa por callbacks:
     //   onExito -> marca loginExitoso (la pantalla navega al observarlo)

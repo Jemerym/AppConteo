@@ -10,14 +10,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.appconteo.R
 import com.example.appconteo.model.CatalogosRincon
 import com.example.appconteo.model.Fechas
-    import com.example.appconteo.model.Sesion
+import com.example.appconteo.model.Rol
+import com.example.appconteo.model.Sesion
 import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.ui.components.TarjetaSeccion
+import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -222,6 +225,36 @@ fun MisTurnosScreen(
                     Text("Cancelar")
                 }
             }
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+private fun MisTurnosObservadorPreview() {
+    AppConteoTheme {
+        MisTurnosScreen(
+            usuario = Usuario(id = 2, nombre = "Camila Rojas", correo = "camila@duocuc.cl", rolId = Rol.ID_OBSERVADOR, rolNombre = "Observador"),
+            turnos = listOf(
+                Turno(id = 1, usuarioId = 2, observadorNombre = "Camila Rojas", acceso = 1, horaInicio = "08:00", horaFin = "16:00", fecha = Fechas.hoy()),
+                Turno(id = 2, usuarioId = 2, observadorNombre = "Camila Rojas", acceso = 2, horaInicio = "01:00", horaFin = "23:55", fecha = Fechas.conOffset(0))
+            ),
+            onVolver = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Turnos - Admin Modo Gestión")
+@Composable
+private fun MisTurnosAdminPreview() {
+    AppConteoTheme {
+        MisTurnosScreen(
+            usuario = Usuario(id = 1, nombre = "Administrador", correo = "admin@demo.cl", rolId = Rol.ID_ADMINISTRADOR, rolNombre = "Administrador"),
+            turnos = listOf(
+                Turno(id = 1, usuarioId = 2, observadorNombre = "Camila Rojas", acceso = 1, horaInicio = "08:00", horaFin = "16:00", fecha = Fechas.hoy()),
+                Turno(id = 2, usuarioId = 3, observadorNombre = "Diego Muñoz", acceso = 2, horaInicio = "09:00", horaFin = "17:00", fecha = Fechas.hoy())
+            ),
+            onVolver = {}
         )
     }
 }

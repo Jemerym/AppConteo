@@ -38,11 +38,13 @@ import com.example.appconteo.ui.style.EstilosCampo
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
 import com.example.appconteo.viewmodel.ProgramarViewModel
+import com.example.appconteo.viewmodel.TurnosViewModel
 import com.example.appconteo.viewmodel.UsuariosViewModel
 
 @Composable
 fun ProgramarScreen(
     usuariosViewModel: UsuariosViewModel = viewModel(),
+    turnosViewModel: TurnosViewModel = viewModel(),
     programarViewModel: ProgramarViewModel = viewModel(),
     turnoId: Long = 0L,
     onVolver: () -> Unit,
@@ -52,10 +54,13 @@ fun ProgramarScreen(
     val usuarios by usuariosViewModel.usuarios.collectAsStateWithLifecycle()
     val observadores = remember(usuarios) { usuarios.filter { it.rolId != 1L } }
     val uiState by programarViewModel.uiState.collectAsStateWithLifecycle()
-
+    LaunchedEffect(Unit) { usuariosViewModel.recargar() }
     LaunchedEffect(turnoId) {
         if (turnoId > 0L) {
-            programarViewModel.cargarTurno(turnoId, usuariosViewModel::buscarTurnoPorId, usuariosViewModel::buscarPorId)
+            programarViewModel.cargarTurno(turnoId, null, usuariosViewModel::buscarPorId)
+            turnosViewModel.obtener(turnoId) { turno ->
+                programarViewModel.cargarTurno(turnoId, turno, usuariosViewModel::buscarPorId)
+            }
         }
     }
 
@@ -79,11 +84,7 @@ fun ProgramarScreen(
         onDiasOffsetCambia = programarViewModel::onDiasOffsetCambia,
         onTramoCambia = programarViewModel::onTramoSeleccionado,
         onProgramar = {
-            programarViewModel.programarTurno(
-                verificarSolapamiento = usuariosViewModel::haySolapamientoTurno,
-                actualizar = usuariosViewModel::actualizarTurno,
-                insertar = usuariosViewModel::insertarTurno
-            )
+            programarViewModel.programarTurno(guardar = turnosViewModel::guardar)
         },
         onVolver = onVolver
     )

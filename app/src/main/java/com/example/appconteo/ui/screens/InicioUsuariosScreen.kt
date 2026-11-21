@@ -47,6 +47,7 @@ fun InicioUsuariosScreen(
     usuario: Usuario?,
     historial: List<HistorialRegistros>,
     conteoState: ConteoUiState,
+    turnoActualServidor: Turno? = null,   // cambia cuando el servidor informa otro turno activo
     onObtenerTurnoActual: (Long) -> Turno?,
     onRegistrarEnHistorial: (String, String, Int, Long, Long, String, String, String?) -> Boolean,
     onRecargarConteo: () -> Unit,
@@ -64,7 +65,7 @@ fun InicioUsuariosScreen(
     val context = LocalContext.current
     var codigoActual by rememberSaveable { mutableStateOf<String?>(null) }
 
-    val turnoActual = remember(usuario) {
+    val turnoActual = remember(usuario, turnoActualServidor) {
         onObtenerTurnoActual(usuario?.id ?: 0)
     }
     val accesoActual = turnoActual?.acceso ?: -1

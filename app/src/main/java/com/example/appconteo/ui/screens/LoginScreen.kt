@@ -27,6 +27,8 @@ fun LoginScreen(
     onLoginExitoso: () -> Unit,
     onIrRegistro: () -> Unit,
     onIrRecuperarClave: () -> Unit = {},
+    limpiarCampos: Boolean = false,
+    onCamposLimpiados: () -> Unit = {},
     viewModel: LoginViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -37,14 +39,28 @@ fun LoginScreen(
         if (uiState.loginExitoso) onLoginExitoso()
     }
 
+    // Tras recuperar la clave, el login vuelve con los campos vacíos
+    LaunchedEffect(limpiarCampos) {
+        if (limpiarCampos) {
+            viewModel.limpiar()
+            onCamposLimpiados()
+        }
+    }
+
     LoginContent(
         uiState = uiState,
         onCorreoLogin = viewModel::onCorreoLogin,
         onContrasenaLogin = viewModel::onContrasenaLogin,
         onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
         onLogin = { viewModel.onLogin(onIniciarSesion) },
-        onIrRegistro = onIrRegistro,
-        onIrRecuperarClave = onIrRecuperarClave,
+        onIrRegistro = {
+            viewModel.limpiarErrores()   // al volver, no deben quedar los errores del intento anterior
+            onIrRegistro()
+        },
+        onIrRecuperarClave = {
+            viewModel.limpiarErrores()
+            onIrRecuperarClave()
+        },
         snackbarHostState = snackbarHostState
     )
 }
