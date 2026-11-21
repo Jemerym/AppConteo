@@ -1,5 +1,6 @@
 package com.example.appconteo.data.remote
 
+import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 
 // DTO = clases con EXACTAMENTE la forma del JSON de usuarios-service.
@@ -57,4 +58,34 @@ fun UsuarioResponse.aUsuario() = Usuario(
     rolId = rolId,
     rolNombre = rolNombre,
     avatarUrl = avatarUrl
+)
+
+// ---------------- Turnos (turnos-service) ----------------
+
+data class TurnoRequest(
+    val usuarioId: Long,
+    val acceso: Int,
+    val horaInicio: String,   // "10:00"
+    val horaFin: String,      // "10:30"
+    val fecha: String         // "2026-11-19"
+)
+
+data class TurnoResponse(
+    val id: Long,
+    val usuarioId: Long,
+    val observadorNombre: String,
+    val acceso: Int,
+    val horaInicio: String,
+    val horaFin: String,
+    val fecha: String
+)
+
+fun TurnoResponse.aTurno() = Turno(
+    id = id,
+    usuarioId = usuarioId,
+    observadorNombre = observadorNombre,
+    acceso = acceso,
+    horaInicio = horaInicio,
+    horaFin = horaFin,
+    fecha = fecha
 )
