@@ -7,6 +7,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -32,7 +34,10 @@ fun VerRegistrosScreen(
     tituloUsuario: String? = null,
     onVolver: () -> Unit,
     onAnularRegistro: ((Long) -> Unit)? = null,
-    onModificarRegistro: ((id: Long, acceso: Int, grupo: String, edad: String) -> Unit)? = null
+    onModificarRegistro: ((id: Long, acceso: Int, grupo: String, edad: String) -> Unit)? = null,
+    onRestaurarRegistro: ((Long) -> Unit)? = null,
+
+    puedeEditar: (HistorialRegistros) -> Boolean = { usuarioActual?.rolId == Rol.ID_ADMINISTRADOR }
 ) {
     var fechaFiltro by remember { mutableStateOf("") }
     var accesoFiltro by remember { mutableStateOf<Int?>(null) }
@@ -40,13 +45,15 @@ fun VerRegistrosScreen(
 
     var registroParaEditar by remember { mutableStateOf<HistorialRegistros?>(null) }
     var registroParaEliminar by remember { mutableStateOf<HistorialRegistros?>(null) }
+    var mostrarAnulados by remember { mutableStateOf(false) }
 
     val accesosInfo = remember { CatalogosRincon.accesosInfo }
     val esAdmin = usuarioActual?.rolId == Rol.ID_ADMINISTRADOR
     val idActual = usuarioActual?.id ?: -1L
 
-    val filtrados = remember(historial, turnoIdFiltro, usuarioIdFiltro, fechaFiltro, accesoFiltro, tipoFiltro, esAdmin, idActual) {
+    val filtrados = remember(historial, turnoIdFiltro, usuarioIdFiltro, fechaFiltro, accesoFiltro, tipoFiltro, esAdmin, idActual, mostrarAnulados) {
         historial.filter { item ->
+            val coincideAnulado = mostrarAnulados || !item.anulado
             val coincideRol = esAdmin || item.usuarioId == idActual
             val coincideUsuario = usuarioIdFiltro == null || item.usuarioId == usuarioIdFiltro
             val coincideTurno = turnoIdFiltro == null || turnoIdFiltro <= 0L || item.idTurno == turnoIdFiltro
@@ -54,7 +61,7 @@ fun VerRegistrosScreen(
             val coincideAcceso = accesoFiltro == null || item.acceso == accesoFiltro
             val coincideTipo = tipoFiltro.isNullOrBlank() || item.tipoRegistro.contains(tipoFiltro!!, ignoreCase = true)
 
-            coincideRol && coincideUsuario && coincideTurno && coincideFecha && coincideAcceso && coincideTipo
+            coincideAnulado && coincideRol && coincideUsuario && coincideTurno && coincideFecha && coincideAcceso && coincideTipo
         }
     }
 
@@ -146,6 +153,12 @@ fun VerRegistrosScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                    // Los registros anulados se conservan; se pueden ver y restaurar
+                    FilterChip(
+                        selected = mostrarAnulados,
+                        onClick = { mostrarAnulados = !mostrarAnulados },
+                        label = { Text("Mostrar anulados") }
+                    )
                 }
             }
 
@@ -169,9 +182,14 @@ fun VerRegistrosScreen(
                     val accesosMap = remember { accesosInfo.toMap() }
                     val nombrePuerta = accesosMap[item.acceso] ?: "Norte"
 
+                    val editable = puedeEditar(item)
+
                     TarjetaSeccion(
-                        titulo = "${item.tipoRegistro}  •  A${item.acceso} $nombrePuerta",
-                        modifier = Modifier.fillMaxWidth()
+                        titulo = (if (item.anulado) "ANULADO  •  " else "") +
+                                "${item.tipoRegistro}  •  A${item.acceso} $nombrePuerta",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .alpha(if (item.anulado) 0.55f else 1f)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -182,7 +200,8 @@ fun VerRegistrosScreen(
                                 Text(
                                     text = "${item.detalle} | Por: ${item.observadorNombre}",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textDecoration = if (item.anulado) TextDecoration.LineThrough else null
                                 )
                                 Text(
                                     text = "Fecha: ${item.fecha}  |  Hora: ${item.hora}",
@@ -192,7 +211,11 @@ fun VerRegistrosScreen(
                                 )
                             }
 
-                            if (esAdmin) {
+                            if (editable && item.anulado && onRestaurarRegistro != null) {
+                                TextButton(onClick = { onRestaurarRegistro(item.id) }) {
+                                    Text("Restaurar")
+                                }
+                            } else if (editable && !item.anulado) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (onModificarRegistro != null) {
                                         IconButton(onClick = { registroParaEditar = item }) {
@@ -239,13 +262,13 @@ fun VerRegistrosScreen(
         AlertDialog(
             onDismissRequest = { registroParaEliminar = null },
             title = { Text("Anular Registro") },
-            text = { Text("¿Estás seguro de que deseas anular este registro de ${reg.observadorNombre} (${reg.tipoRegistro})?") },
+            text = { Text("¿Anular este registro de ${reg.observadorNombre} (${reg.tipoRegistro})? Deja de contar en el aforo, pero se conserva y se puede restaurar.") },
             confirmButton = {
                 TextButton(onClick = {
                     onAnularRegistro?.invoke(reg.id)
                     registroParaEliminar = null
                 }) {
-                    Text("Anular / Eliminar", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    Text("Anular", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -257,16 +280,17 @@ fun VerRegistrosScreen(
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+
+@Preview(showBackground = true, name = "Con Filtro de Anulados")
 @Composable
-private fun VerRegistrosPreview() {
+private fun VerRegistrosConAnuladosPreview() {
     AppConteoTheme {
         VerRegistrosScreen(
             historial = listOf(
-                HistorialRegistros(id = 1, observadorNombre = "Carlos", tipoRegistro = "Cliente (Boleta)", acceso = 1, idTurno = 10, tipoGrupo = "Solo", rangoEtario = "25-34", fecha = "2025-03-30", hora = "12:35"),
-                HistorialRegistros(id = 2, observadorNombre = "Valentina", tipoRegistro = "Transeúnte (Aforo)", acceso = 2, idTurno = 10, tipoGrupo = "Grupo (3+)", rangoEtario = "18-24", fecha = "2025-03-30", hora = "11:00")
+                HistorialRegistros(id = 1, observadorNombre = "Carlos Observador", tipoRegistro = "Cliente (Boleta)", acceso = 1, idTurno = 10, tipoGrupo = "Solo", rangoEtario = "25-34", fecha = "2025-03-30", hora = "12:35"),
+                HistorialRegistros(id = 2, observadorNombre = "Valentina", tipoRegistro = "Transeúnte (Aforo)", acceso = 2, idTurno = 10, tipoGrupo = "Grupo (3+)", rangoEtario = "18-24", fecha = "2025-03-30", hora = "11:00", anulado = true)
             ),
-            turnoIdFiltro = 10L,
+            usuarioActual = Usuario(id = 1, nombre = "Admin", correo = "admin@demo.cl", rolId = Rol.ID_ADMINISTRADOR, rolNombre = "Administrador"),
             onVolver = {}
         )
     }
