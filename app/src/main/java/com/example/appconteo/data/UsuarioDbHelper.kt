@@ -226,6 +226,41 @@ class UsuarioDbHelper(context: Context) :
         }
     }
 
+    // ESPEJO LOCAL de turnos (mismo id que en el servidor), para que historial.id_turno tenga a qué apuntar.
+    // Si el usuario del turno aún no está en el espejo, se crea un registro mínimo que
+    // sincronizarUsuarios completa después. Temporal: se elimina con registros-service.
+    fun sincronizarTurnos(turnos: List<Turno>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            for (t in turnos) {
+                val usuario = ContentValues().apply {
+                    put(USU_ID, t.usuarioId)
+                    put(USU_NOMBRE, t.observadorNombre)
+                    put(USU_CORREO, "")
+                    put(USU_ROL, Rol.ID_OBSERVADOR)
+                }
+                db.insertWithOnConflict(TABLA_USUARIOS, null, usuario, SQLiteDatabase.CONFLICT_IGNORE)
+
+                val valores = ContentValues().apply {
+                    put(TURNO_USUARIO, t.usuarioId)
+                    put(TURNO_ACCESO, t.acceso)
+                    put(TURNO_INICIO, t.horaInicio)
+                    put(TURNO_FIN, t.horaFin)
+                    put(TURNO_FECHA, t.fecha)
+                }
+                val filas = db.update(TABLA_TURNOS, valores, "$TURNO_ID = ?", arrayOf(t.id.toString()))
+                if (filas == 0) {
+                    valores.put(TURNO_ID, t.id)
+                    db.insert(TABLA_TURNOS, null, valores)
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     fun listarRoles(): List<Rol> =
         consultar("SELECT $ROL_ID, $ROL_NOMBRE FROM $TABLA_ROLES ORDER BY $ROL_ID", null, ::leerRol)
 

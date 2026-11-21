@@ -3,14 +3,15 @@ package com.example.appconteo.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.appconteo.data.AvatarRepository
 import com.example.appconteo.data.SesionPreferencias
+import com.example.appconteo.data.TurnoRepository
 import com.example.appconteo.data.UsuarioDbHelper
 import com.example.appconteo.data.UsuarioRepository
 import com.example.appconteo.model.CambiosPerfil
 import com.example.appconteo.model.Fechas
 import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Rol
-import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,8 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     // USUARIOS -> ahora vienen del microservicio usuarios-service (UsuarioRepository).
     private val repo = UsuarioRepository()
+    private val avatarRepo = AvatarRepository()
+    private val turnoRepo = TurnoRepository()   // solo para limpiar turnos al eliminar un usuario
 
     // SQLite se mantiene SOLO para turnos e historial (todavía no tienen microservicio)
     // y como "espejo" local de los usuarios (ver espejar()).
@@ -44,9 +47,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     private val _historial = MutableStateFlow<List<HistorialRegistros>>(emptyList())
     val historial: StateFlow<List<HistorialRegistros>> = _historial.asStateFlow()
-
-    private val _turnos = MutableStateFlow<List<Turno>>(emptyList())
-    val turnos: StateFlow<List<Turno>> = _turnos.asStateFlow()
 
     val esAdministrador: Boolean
         get() = _usuarioActual.value?.rolId == Rol.ID_ADMINISTRADOR
@@ -104,7 +104,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun recargar() {
         _historial.value = db.listarHistorial()
-        _turnos.value = db.listarTurnos()
         cargarUsuarios()
     }
 
@@ -215,7 +214,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun actualizarAvatar(id: Long, avatar: ByteArray) {
         ejecutar {
-            _usuarioActual.value = repo.subirAvatar(id, avatar)
+            _usuarioActual.value = avatarRepo.subir(id, avatar)
             _mensaje.value = "✅ Foto de perfil actualizada"
         }
     }
@@ -227,7 +226,14 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
         ejecutar {
             repo.eliminar(usuario.id)
-            db.eliminarUsuario(usuario.id)   // espejo local (borra también sus turnos, como antes)
+            // Sus turnos viven en otro servicio: se limpian aparte (antes lo hacía el ON DELETE CASCADE).
+            try {
+                turnoRepo.eliminarDeUsuario(usuario.id)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                // Si turnos-service no responde, el usuario ya se eliminó; sus turnos quedan huérfanos.
+            }
+            db.eliminarUsuario(usuario.id)   // espejo local
             _mensaje.value = "✅ Usuario '${usuario.nombre}' eliminado"
             if (_usuarioActual.value?.id == usuario.id) cerrarSesion() else recargar()
         }
@@ -280,57 +286,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         db.eliminarHistorial(idHistorial)
         _historial.value = db.listarHistorial()
         _mensaje.value = "✅ Registro eliminado"
-    }
-
-    // ---------- TURNOS (siguen en SQLite hasta crear turnos-service) ----------
-
-    fun recargarTurnos() {
-        _turnos.value = db.listarTurnos()
-    }
-
-    fun eliminarTurno(idTurno: Long) {
-        if (!esAdministrador) {
-            _mensaje.value = "⚠️ Acción no permitida"
-            return
-        }
-        db.eliminarTurno(idTurno)
-        _mensaje.value = "✅ Turno eliminado con éxito"
-        recargarTurnos()
-    }
-
-    fun insertarTurno(idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Long {
-        if (!esAdministrador) {
-            _mensaje.value = "⚠️ Solo un administrador puede programar turnos"
-            return -1L
-        }
-        val id = db.insertarTurno(idUsuario, acceso, horaInicio, horaFin, fecha)
-        if (id != -1L) {
-            _mensaje.value = "✅ Turno programado con éxito"
-            recargarTurnos()
-        }
-        return id
-    }
-
-    fun actualizarTurno(idTurno: Long, idUsuario: Long, acceso: Int, horaInicio: String, horaFin: String, fecha: String): Int {
-        if (!esAdministrador) {
-            _mensaje.value = "⚠️ Solo un administrador puede modificar turnos"
-            return 0
-        }
-        val res = db.actualizarTurno(idTurno, idUsuario, acceso, horaInicio, horaFin, fecha)
-        if (res > 0) {
-            _mensaje.value = "✅ Turno actualizado con éxito"
-            recargarTurnos()
-        }
-        return res
-    }
-
-    fun buscarTurnoPorId(idTurno: Long): Turno? = db.buscarTurnoPorId(idTurno)
-
-    fun haySolapamientoTurno(idUsuario: Long, acceso: Int, fecha: String, inicio: String, fin: String, excluirIdTurno: Long = 0L): Boolean =
-        db.haySolapamientoTurno(idUsuario, acceso, fecha, inicio, fin, excluirIdTurno)
-
-    fun obtenerTurnoActual(idUsuario: Long): Turno? {
-        return db.obtenerTurnoActualObjeto(idUsuario, Fechas.hoy(), Fechas.horaActual())
     }
 
     override fun onCleared() {
