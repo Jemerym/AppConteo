@@ -46,7 +46,8 @@ data class UsuarioResponse(
     val correo: String,
     val rolId: Long,
     val rolNombre: String,
-    val avatarUrl: String?
+    val avatarUrl: String?,
+    val activo: Boolean?          // null si el servidor es antiguo -> se toma como activo
 )
 
 // Convierte el DTO de la API en el modelo que usa la app:
@@ -57,7 +58,8 @@ fun UsuarioResponse.aUsuario() = Usuario(
     id = id,
     rolId = rolId,
     rolNombre = rolNombre,
-    avatarUrl = avatarUrl
+    avatarUrl = avatarUrl,
+    activo = activo != false
 )
 
 // ---------------- Turnos (turnos-service) ----------------
@@ -77,7 +79,8 @@ data class TurnoResponse(
     val acceso: Int,
     val horaInicio: String,
     val horaFin: String,
-    val fecha: String
+    val fecha: String,
+    val anulado: Boolean?
 )
 
 fun TurnoResponse.aTurno() = Turno(
@@ -87,5 +90,6 @@ fun TurnoResponse.aTurno() = Turno(
     acceso = acceso,
     horaInicio = horaInicio,
     horaFin = horaFin,
-    fecha = fecha
+    fecha = fecha,
+    anulado = anulado == true
 )
