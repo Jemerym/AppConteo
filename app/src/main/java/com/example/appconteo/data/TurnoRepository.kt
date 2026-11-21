@@ -33,9 +33,12 @@ class TurnoRepository(
     ): Turno =
         llamarApi { api.actualizar(id, TurnoRequest(usuarioId, acceso, horaInicio, horaFin, fecha)) }.aTurno()
 
-    suspend fun eliminar(id: Long) =
-        llamarApi { api.eliminar(id) }
+    suspend fun anular(id: Long): Turno =
+        llamarApi { api.anular(id) }.aTurno()
 
-    suspend fun eliminarDeUsuario(usuarioId: Long) =
-        llamarApi { api.eliminarDeUsuario(usuarioId) }
+    suspend fun restaurar(id: Long): Turno =
+        llamarApi { api.restaurar(id) }.aTurno()
+
+    suspend fun anularDeUsuario(usuarioId: Long) =
+        llamarApi { api.anularDeUsuario(usuarioId) }
 }

@@ -2,7 +2,6 @@ package com.example.appconteo.data.remote
 
 import retrofit2.Response
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -30,9 +29,13 @@ interface TurnoApi {
     @PUT("api/turnos/{id}")
     suspend fun actualizar(@Path("id") id: Long, @Body datos: TurnoRequest): TurnoResponse
 
-    @DELETE("api/turnos/{id}")
-    suspend fun eliminar(@Path("id") id: Long)
+    // CAMBIO: ya no se elimina; se anula y se puede restaurar
+    @PUT("api/turnos/{id}/anular")
+    suspend fun anular(@Path("id") id: Long): TurnoResponse
 
-    @DELETE("api/turnos/usuario/{usuarioId}")
-    suspend fun eliminarDeUsuario(@Path("usuarioId") usuarioId: Long)
+    @PUT("api/turnos/{id}/restaurar")
+    suspend fun restaurar(@Path("id") id: Long): TurnoResponse
+
+    @PUT("api/turnos/usuario/{usuarioId}/anular")
+    suspend fun anularDeUsuario(@Path("usuarioId") usuarioId: Long)
 }
