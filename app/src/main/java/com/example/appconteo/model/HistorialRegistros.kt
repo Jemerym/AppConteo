@@ -11,7 +11,8 @@ data class HistorialRegistros(
     val rangoEtario: String = "25-34",
     val codigoBoleta: String? = null,
     val fecha: String = "",
-    val hora: String = ""
+    val hora: String = "",
+    val anulado: Boolean = false       // anulado: se conserva pero no cuenta en las métricas
 ) {
     val detalle: String
         get() = "Tipo: $tipoGrupo, Edad: $rangoEtario"

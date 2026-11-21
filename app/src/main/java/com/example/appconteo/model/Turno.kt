@@ -7,5 +7,6 @@ data class Turno(
     val acceso: Int = 1,
     val horaInicio: String,
     val horaFin: String,
-    val fecha: String
+    val fecha: String,
+    val anulado: Boolean = false       // anulado: se conserva pero no ocupa el tramo ni cuenta como activo
 )

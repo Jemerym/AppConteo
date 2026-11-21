@@ -9,7 +9,8 @@ data class Usuario(
     val rolNombre: String = "",
     val contrasena: String = "",       // solo se usa al registrar; la API nunca la devuelve
     val palabraSecreta: String = "",   // solo se usa al registrar; la API nunca la devuelve
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    val activo: Boolean = true         // false = anulado (no puede iniciar sesión; se puede restaurar)
 ) {
     val esAdmin: Boolean get() = rolId == Rol.ID_ADMINISTRADOR
 }
