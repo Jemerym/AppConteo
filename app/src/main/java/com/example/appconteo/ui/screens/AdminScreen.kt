@@ -12,8 +12,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appconteo.R
 import com.example.appconteo.model.CatalogosRincon
 import com.example.appconteo.model.Clasificacion
@@ -33,6 +31,7 @@ fun AdminScreen(
     usuarioActual: Usuario?,
     conteoState: ConteoUiState,
     onRecargarConteo: () -> Unit,
+    onVerPerfil: () -> Unit = {},
     onVerUsuarios: () -> Unit,
     onVerRegistros: () -> Unit = {},
     onVerTurnos: () -> Unit = {},
@@ -43,9 +42,10 @@ fun AdminScreen(
         onRecargarConteo()
     }
     AdminContent(
-        historial = historial,
+        historial = historial.filter { !it.anulado },   // los anulados no cuentan (se ven en Ver Registros)
         usuarioActual = usuarioActual,
         conteoState = conteoState,
+        onVerPerfil = onVerPerfil,
         onVerUsuarios = onVerUsuarios,
         onVerRegistros = onVerRegistros,
         onVerTurnos = onVerTurnos,
@@ -60,6 +60,7 @@ fun AdminContent(
     historial: List<HistorialRegistros>,
     usuarioActual: Usuario?,
     conteoState: ConteoUiState,
+    onVerPerfil: () -> Unit = {},
     onVerUsuarios: () -> Unit,
     onVerRegistros: () -> Unit = {},
     onVerTurnos: () -> Unit = {},
@@ -85,11 +86,19 @@ fun AdminContent(
                 )
                 HorizontalDivider()
                 NavigationDrawerItem(
-                    label = { Text("Ver Registros de Aforo") },
+                    label = { Text("Mi Perfil") },
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
-                        onVerRegistros()
+                        onVerPerfil()
+                    }
+                )
+                NavigationDrawerItem(
+                    label = { Text(stringResource(R.string.titulo_usuarios)) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        onVerUsuarios()
                     }
                 )
                 NavigationDrawerItem(
@@ -101,11 +110,11 @@ fun AdminContent(
                     }
                 )
                 NavigationDrawerItem(
-                    label = { Text(stringResource(R.string.titulo_usuarios)) },
+                    label = { Text("Ver Registros de Aforo") },
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
-                        onVerUsuarios()
+                        onVerRegistros()
                     }
                 )
                 NavigationDrawerItem(
@@ -180,6 +189,7 @@ fun AdminContent(
                         titulo = "Total ingresos",
                         valor = "$totalPersonas",
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        colorValor = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -282,6 +292,7 @@ private fun AdminPreview() {
             ),
             usuarioActual = Usuario(id = 1, nombre = "Admin", correo = "admin@demo.cl", rolNombre = "Administrador"),
             conteoState = ConteoUiState(totalPersonas = 100, boletasCajaTotal = 15),
+            onVerPerfil = {},
             onVerUsuarios = {},
             onVerRegistros = {},
             onIrProgramarSesion = {},

@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -28,8 +29,10 @@ import com.example.appconteo.ui.theme.Dimens
 fun MisTurnosScreen(
     usuario: Usuario?,
     turnos: List<Turno>,
-    onEliminarTurno: (Long) -> Unit = {},
+    onAnularTurno: (Long) -> Unit = {},
+    onRestaurarTurno: (Long) -> Unit = {},
     onRecargarTurnos: () -> Unit = {},
+    // Texto a mostrar cuando el servidor no respondió y la lista sale de la copia guardada en el teléfono
     onVerRegistrosTurno: (Long) -> Unit = {},
     onEditarTurno: (Long) -> Unit = {},
     onVolver: () -> Unit
@@ -39,21 +42,41 @@ fun MisTurnosScreen(
     }
 
     var modoAdmin by remember { mutableStateOf(false) }
-    var turnoParaEliminar by remember { mutableStateOf<Turno?>(null) }
+    var turnoParaAnular by remember { mutableStateOf<Turno?>(null) }
+    var mostrarAnulados by remember { mutableStateOf(false) }
 
     val esAdmin = usuario?.esAdmin == true
 
-    val turnosFiltrados = remember(turnos, usuario, esAdmin) {
+    // CAMBIO: los turnos anulados se conservan. El admin puede verlos (y restaurarlos);
+    // el observador nunca ve sus turnos anulados.
+    val turnosFiltrados = remember(turnos, usuario, esAdmin, mostrarAnulados) {
         if (esAdmin) {
-            turnos
+            turnos.filter { mostrarAnulados || !it.anulado }
         } else {
             val idActual = usuario?.id ?: -1L
-            turnos.filter { it.usuarioId == idActual }
+            turnos.filter { it.usuarioId == idActual && !it.anulado }
         }
     }
+    val cantidadAnulados = remember(turnos) { turnos.count { it.anulado } }
 
     val fechaHoy = remember { Fechas.hoy() }
     val horaActual = remember { Fechas.horaActual() }
+    // Orden por fecha y hora (antes salían en el orden en que se asignaron).
+    // Primero los que vienen o están en curso: del día más cercano y la hora más temprana.
+    // Al final los ya realizados, del más reciente al más antiguo.
+    // Orden: primero TODOS los turnos de hoy (por hora), luego los próximos días
+    // (del más cercano al más lejano) y al final los días pasados (del más reciente al más antiguo).
+    val turnosOrdenados = remember(turnosFiltrados, fechaHoy) {
+        val deHoy = turnosFiltrados.filter { it.fecha == fechaHoy }
+            .sortedBy { it.horaInicio }
+        val proximos = turnosFiltrados.filter { it.fecha > fechaHoy }
+            .sortedWith(compareBy({ it.fecha }, { it.horaInicio }))
+        val pasados = turnosFiltrados.filter { it.fecha < fechaHoy }
+            .sortedWith(compareByDescending<Turno> { it.fecha }.thenByDescending { it.horaInicio })
+        deHoy + proximos + pasados
+    }
+    // Agrupa por día, respetando el orden anterior (groupBy conserva el orden en que aparecen)
+    val turnosPorDia = remember(turnosOrdenados) { turnosOrdenados.groupBy { it.fecha } }
 
     fun calcularEstado(turno: Turno): Sesion {
         return when {
@@ -104,6 +127,15 @@ fun MisTurnosScreen(
                 .padding(innerPadding)
                 .padding(Dimens.espacioPantalla)
         ) {
+
+            if (esAdmin) {
+                FilterChip(
+                    selected = mostrarAnulados,
+                    onClick = { mostrarAnulados = !mostrarAnulados },
+                    label = { Text("Mostrar anulados ($cantidadAnulados)") },
+                    modifier = Modifier.padding(bottom = Dimens.espacioChico)
+                )
+            }
             if (turnosFiltrados.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -122,79 +154,99 @@ fun MisTurnosScreen(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(Dimens.espacioMedio)
                 ) {
-                    items(turnosFiltrados, key = { it.id }) { turno ->
-                        val estado = calcularEstado(turno)
-                        val colorEstado = when (estado) {
-                            Sesion.PROGRAMADA -> MaterialTheme.colorScheme.tertiary
-                            Sesion.EN_CURSO -> MaterialTheme.colorScheme.primary
-                            Sesion.REALIZADA -> MaterialTheme.colorScheme.outline
+                    turnosPorDia.forEach { (fecha, turnosDelDia) ->
+                        item(key = "dia-$fecha") {
+                            Text(
+                                text = tituloDia(fecha, fechaHoy),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = Dimens.espacioChico)
+                            )
                         }
-                        val accesosNombres = remember { CatalogosRincon.accesosInfo.toMap() }
-                        val nombrePuerta = accesosNombres[turno.acceso] ?: "Norte"
+                        items(turnosDelDia, key = { it.id }) { turno ->
+                            val estado = calcularEstado(turno)
+                            val colorEstado = when {
+                                turno.anulado -> MaterialTheme.colorScheme.error
+                                estado == Sesion.PROGRAMADA -> MaterialTheme.colorScheme.tertiary
+                                estado == Sesion.EN_CURSO -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.outline
+                            }
+                            val accesosNombres = remember { CatalogosRincon.accesosInfo.toMap() }
+                            val nombrePuerta = accesosNombres[turno.acceso] ?: "Norte"
 
-                        TarjetaSeccion(
-                            titulo = "Acceso $nombrePuerta • ${turno.observadorNombre}",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onVerRegistrosTurno(turno.id) }
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            TarjetaSeccion(
+                                titulo = "Acceso $nombrePuerta • ${turno.observadorNombre}",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .alpha(if (turno.anulado) 0.55f else 1f)
+                                    .clickable { onVerRegistrosTurno(turno.id) }
                             ) {
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(
-                                        text = "Fecha: ${turno.fecha}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Horario: ${turno.horaInicio} a ${turno.horaFin}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "Toca la tarjeta para ver registros",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(Dimens.espacioChico),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Surface(
-                                        color = colorEstado.copy(alpha = 0.2f),
-                                        shape = MaterialTheme.shapes.small
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.weight(1f)
                                     ) {
                                         Text(
-                                            text = estado.etiqueta,
-                                            color = colorEstado,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                            text = "Fecha: ${turno.fecha}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Horario: ${turno.horaInicio} a ${turno.horaFin}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "Toca la tarjeta para ver registros",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
 
-                                    if (esAdmin && modoAdmin) {
-                                        IconButton(onClick = { onEditarTurno(turno.id) }) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.ic_editar),
-                                                contentDescription = "Editar Turno",
-                                                tint = MaterialTheme.colorScheme.primary
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(Dimens.espacioChico),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Surface(
+                                            color = colorEstado.copy(alpha = 0.2f),
+                                            shape = MaterialTheme.shapes.small
+                                        ) {
+                                            Text(
+                                                text = if (turno.anulado) "Anulado" else estado.etiqueta,
+                                                color = colorEstado,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(
+                                                    horizontal = 12.dp,
+                                                    vertical = 6.dp
+                                                )
                                             )
                                         }
-                                        IconButton(onClick = { turnoParaEliminar = turno }) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.ic_eliminar),
-                                                contentDescription = "Eliminar Turno",
-                                                tint = MaterialTheme.colorScheme.error
-                                            )
+
+                                        if (esAdmin && turno.anulado) {
+                                            TextButton(onClick = { onRestaurarTurno(turno.id) }) {
+                                                Text("Restaurar")
+                                            }
+                                        } else if (esAdmin && modoAdmin) {
+                                            IconButton(onClick = { onEditarTurno(turno.id) }) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_editar),
+                                                    contentDescription = "Editar Turno",
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                            IconButton(onClick = { turnoParaAnular = turno }) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_eliminar),
+                                                    contentDescription = "Anular Turno",
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -206,22 +258,22 @@ fun MisTurnosScreen(
         }
     }
 
-    // Diálogo de Confirmación para Eliminar Turno
-    turnoParaEliminar?.let { turno ->
+    // Diálogo de confirmación para ANULAR turno (se conserva y se puede restaurar)
+    turnoParaAnular?.let { turno ->
         AlertDialog(
-            onDismissRequest = { turnoParaEliminar = null },
-            title = { Text("Eliminar Turno") },
-            text = { Text("¿Estás seguro de que deseas eliminar el turno asignado a ${turno.observadorNombre} (${turno.fecha} - ${turno.horaInicio} a ${turno.horaFin})?") },
+            onDismissRequest = { turnoParaAnular = null },
+            title = { Text("Anular Turno") },
+            text = { Text("¿Anular el turno de ${turno.observadorNombre} (${turno.fecha} - ${turno.horaInicio} a ${turno.horaFin})? Se libera el horario y podrás restaurarlo después.") },
             confirmButton = {
                 TextButton(onClick = {
-                    onEliminarTurno(turno.id)
-                    turnoParaEliminar = null
+                    onAnularTurno(turno.id)
+                    turnoParaAnular = null
                 }) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    Text("Anular", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { turnoParaEliminar = null }) {
+                TextButton(onClick = { turnoParaAnular = null }) {
                     Text("Cancelar")
                 }
             }
@@ -256,5 +308,17 @@ private fun MisTurnosAdminPreview() {
             ),
             onVolver = {}
         )
+    }
+}// "Hoy", "Mañana", "Ayer" o la fecha con el día de la semana (ej: "Lunes 24/11/2026")
+private fun tituloDia(fecha: String, hoy: String): String {
+    val formatoEntrada = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+    val dia = try { formatoEntrada.parse(fecha) } catch (e: Exception) { null } ?: return fecha
+    return when (fecha) {
+        hoy -> "Hoy"
+        Fechas.conOffset(1) -> "Mañana"
+        Fechas.conOffset(-1) -> "Ayer"
+        else -> java.text.SimpleDateFormat("EEEE dd/MM/yyyy", java.util.Locale("es", "CL"))
+            .format(dia)
+            .replaceFirstChar { it.uppercase() }
     }
 }

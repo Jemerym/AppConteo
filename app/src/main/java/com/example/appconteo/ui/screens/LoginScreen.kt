@@ -39,7 +39,7 @@ fun LoginScreen(
         if (uiState.loginExitoso) onLoginExitoso()
     }
 
-    // Tras recuperar la clave, el login vuelve con los campos vacíos
+    // Tras recuperar la clave o navegar desde otra pantalla, el login limpia todos los campos
     LaunchedEffect(limpiarCampos) {
         if (limpiarCampos) {
             viewModel.limpiar()
@@ -54,11 +54,11 @@ fun LoginScreen(
         onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
         onLogin = { viewModel.onLogin(onIniciarSesion) },
         onIrRegistro = {
-            viewModel.limpiarErrores()   // al volver, no deben quedar los errores del intento anterior
+            viewModel.limpiar()   // Deja la pantalla limpia (campos y errores vacíos) al ir a Registro
             onIrRegistro()
         },
         onIrRecuperarClave = {
-            viewModel.limpiarErrores()
+            viewModel.limpiar()   // Deja la pantalla limpia (campos y errores vacíos) al ir a Recuperar Clave
             onIrRecuperarClave()
         },
         snackbarHostState = snackbarHostState

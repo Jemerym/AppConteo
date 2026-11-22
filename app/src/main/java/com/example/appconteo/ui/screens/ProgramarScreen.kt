@@ -52,9 +52,10 @@ fun ProgramarScreen(
 ) {
     val context = LocalContext.current
     val usuarios by usuariosViewModel.usuarios.collectAsStateWithLifecycle()
-    val observadores = remember(usuarios) { usuarios.filter { it.rolId != 1L } }
+    // Solo observadores ACTIVOS: a un anulado no se le pueden asignar turnos.
+    val observadores = remember(usuarios) { usuarios.filter { it.rolId != 1L && it.activo } }
     val uiState by programarViewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { usuariosViewModel.recargar() }
+
     LaunchedEffect(turnoId) {
         if (turnoId > 0L) {
             programarViewModel.cargarTurno(turnoId, null, usuariosViewModel::buscarPorId)

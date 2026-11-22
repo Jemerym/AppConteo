@@ -1,13 +1,17 @@
 package com.example.appconteo.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.appconteo.R
 import com.example.appconteo.model.Rol
@@ -23,30 +27,62 @@ fun UsuariosScreen(
     usuarioActual: Usuario?,
     filtro: String,
     onBuscar: (String) -> Unit,
-    onEliminarUsuario: (Usuario) -> Unit,
+    onAnularUsuario: (Usuario) -> Unit,
+    onRestaurarUsuario: (Usuario) -> Unit = {},
     onVerRegistros: (Long) -> Unit,
     onVolver: () -> Unit
 ) {
-    var porEliminar by remember { mutableStateOf<Usuario?>(null) }
-    var modoEliminar by remember { mutableStateOf(false) }
+    // CAMBIO: ya no se elimina. Se ANULA (no puede entrar, pero se conserva su registro) y se puede RESTAURAR.
+    var porAnular by remember { mutableStateOf<Usuario?>(null) }
+    var porRestaurar by remember { mutableStateOf<Usuario?>(null) }
+    var modoGestion by remember { mutableStateOf(false) }
+    var mostrarAnulados by rememberSaveable { mutableStateOf(false) }
 
-    val observadores = remember(usuarios) {
-        usuarios.filter { !it.esAdmin }
+    // El botón "atrás" del teléfono también pasa por onVolver (así también se limpia el buscador)
+    BackHandler(onBack = onVolver)
+
+    val observadores = remember(usuarios, mostrarAnulados) {
+        usuarios.filter { !it.esAdmin && (mostrarAnulados || it.activo) }
     }
+    val cantidadAnulados = remember(usuarios) { usuarios.count { !it.esAdmin && !it.activo } }
 
-    porEliminar?.let { usuario ->
+    porAnular?.let { usuario ->
         AlertDialog(
-            onDismissRequest = { porEliminar = null },
-            title = { Text(stringResource(R.string.dialogo_eliminar_titulo)) },
-            text = { Text(stringResource(R.string.dialogo_eliminar_mensaje, usuario.nombre)) },
+            onDismissRequest = { porAnular = null },
+            title = { Text("Anular usuario") },
+            text = {
+                Text(
+                    "¿Anular a ${usuario.nombre}? No podrá iniciar sesión y sus turnos quedarán anulados. " +
+                            "Sus registros se conservan y puedes restaurarlo cuando quieras."
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
-                    onEliminarUsuario(usuario)
-                    porEliminar = null
-                }) { Text(stringResource(R.string.btn_eliminar), color = MaterialTheme.colorScheme.error) }
+                    onAnularUsuario(usuario)
+                    porAnular = null
+                }) { Text("Anular", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { porEliminar = null }) {
+                TextButton(onClick = { porAnular = null }) {
+                    Text(stringResource(R.string.dialogo_cancelar))
+                }
+            }
+        )
+    }
+
+    porRestaurar?.let { usuario ->
+        AlertDialog(
+            onDismissRequest = { porRestaurar = null },
+            title = { Text("Restaurar usuario") },
+            text = { Text("¿Restaurar a ${usuario.nombre}? Podrá volver a iniciar sesión. Sus turnos anulados no se restauran solos.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onRestaurarUsuario(usuario)
+                    porRestaurar = null
+                }) { Text("Restaurar", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { porRestaurar = null }) {
                     Text(stringResource(R.string.dialogo_cancelar))
                 }
             }
@@ -66,11 +102,11 @@ fun UsuariosScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { modoEliminar = !modoEliminar }) {
+                    IconButton(onClick = { modoGestion = !modoGestion }) {
                         Icon(
                             painter = painterResource(R.drawable.ic_eliminar),
-                            contentDescription = "Activar modo eliminar",
-                            tint = if (modoEliminar) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimary
+                            contentDescription = "Activar modo anular",
+                            tint = if (modoGestion) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 },
@@ -97,6 +133,13 @@ fun UsuariosScreen(
                 modifier = Modifier.padding(horizontal = Dimens.espacioMedio, vertical = Dimens.espacioChico)
             )
 
+            FilterChip(
+                selected = mostrarAnulados,
+                onClick = { mostrarAnulados = !mostrarAnulados },
+                label = { Text("Mostrar anulados ($cantidadAnulados)") },
+                modifier = Modifier.padding(horizontal = Dimens.espacioMedio)
+            )
+
             if (observadores.isEmpty()) {
                 Text(
                     text = stringResource(R.string.lista_vacia),
@@ -111,23 +154,38 @@ fun UsuariosScreen(
                 verticalArrangement = Arrangement.spacedBy(Dimens.espacioChico)
             ) {
                 items(observadores, key = { it.id }) { usuario ->
-                    Card(onClick = { onVerRegistros(usuario.id) }) {
+                    Card(
+                        onClick = { onVerRegistros(usuario.id) },
+                        modifier = Modifier.alpha(if (usuario.activo) 1f else 0.55f)
+                    ) {
                         ListItem(
-                            overlineContent = { Text(usuario.rolNombre.ifEmpty { "Observador" }) },
+                            overlineContent = {
+                                Text(
+                                    if (usuario.activo) usuario.rolNombre.ifEmpty { "Observador" }
+                                    else "ANULADO",
+                                    color = if (usuario.activo) MaterialTheme.colorScheme.onSurfaceVariant
+                                    else MaterialTheme.colorScheme.error
+                                )
+                            },
                             leadingContent = {
                                 Icon(painterResource(R.drawable.ic_persona), contentDescription = null)
                             },
                             headlineContent = { Text(usuario.nombre) },
                             supportingContent = { Text(usuario.correo) },
                             trailingContent = {
-                                if (modoEliminar && usuario.id != usuarioActual?.id) {
-                                    IconButton(onClick = { porEliminar = usuario }) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_eliminar),
-                                            contentDescription = stringResource(R.string.cd_eliminar),
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
+                                when {
+                                    // Restaurar siempre está a la vista para los anulados
+                                    !usuario.activo -> TextButton(onClick = { porRestaurar = usuario }) {
+                                        Text("Restaurar")
                                     }
+                                    modoGestion && usuario.id != usuarioActual?.id ->
+                                        IconButton(onClick = { porAnular = usuario }) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_eliminar),
+                                                contentDescription = "Anular usuario",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
                                 }
                             }
                         )
@@ -140,10 +198,10 @@ fun UsuariosScreen(
 private val listaUsuariosPreview = listOf(
     Usuario(nombre = "Administrador Demo", correo = "admin@demo.cl", id = 1, rolId = 1, rolNombre = "Administrador"),
     Usuario(nombre = "Camila Rojas", correo = "camila@duocuc.cl", id = 2, rolId = 3, rolNombre = "Observador"),
-    Usuario(nombre = "Diego Muñoz", correo = "diego@duocuc.cl", id = 3, rolId = 3, rolNombre = "Observador")
+    Usuario(nombre = "Diego Muñoz", correo = "diego@duocuc.cl", id = 3, rolId = 3, rolNombre = "Observador", activo = false)
 )
 
-private val adminPreviewUser = Usuario(nombre = "Admin Principal", correo = "admin@demo.cl", id = 1, rolId = 1, rolNombre = "Administrador")
+private val adminPreviewUser = Usuario(nombre = "Admin Principal", correo = "a  dmin@demo.cl", id = 1, rolId = 1, rolNombre = "Administrador")
 
 @Preview(showBackground = true, showSystemUi = true, name = "Admin - Con Usuarios")
 @Composable
@@ -154,7 +212,7 @@ private fun AdminPreview() {
             usuarioActual = adminPreviewUser,
             filtro = "",
             onBuscar = {},
-            onEliminarUsuario = {},
+            onAnularUsuario = {},
             onVolver = {},
             onVerRegistros = {}
         )
