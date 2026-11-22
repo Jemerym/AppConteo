@@ -1,4 +1,4 @@
-# TOTUM
+# AppConteo
 
 App Android para **contar el flujo de personas** (clientes y transeúntes) en los accesos de un recinto. Un **administrador** programa los turnos de los **observadores**. Cada observador, durante su turno, registra a las personas que pasan por su acceso, ya sea escaneando la boleta (clientes) o con un registro rápido (tránsito).
 
@@ -42,16 +42,21 @@ El backend son **4 microservicios Spring Boot** con MySQL. La app se conecta a e
 ## Arquitectura
 
 ```
-App Android (Kotlin + Jetpack Compose, MVVM)
-   │  Retrofit (HTTP / JSON)
-   ├──► roles-ms      :8081  ── MySQL roles_db
-   ├──► usuarios-ms   :8082  ── MySQL usuarios_db   ──(WebClient)──► roles-ms
-   ├──► turnos-ms     :8083  ── MySQL turnos_db     ──(WebClient)──► usuarios-ms
-   └──► registros-ms  :8084  ── MySQL registros_db
+App Android (Kotlin + Jetpack Compose, MVVM) — Retrofit
+   │
+   ▼
+api-gateway :8080 ──┬──► roles-ms      :8081  ── MySQL roles_db
+        │           ├──► usuarios-ms   :8082  ── MySQL usuarios_db   ──(por nombre)──► roles-ms
+        │           ├──► turnos-ms     :8083  ── MySQL turnos_db     ──(por nombre)──► usuarios-ms
+        │           └──► registros-ms  :8084  ── MySQL registros_db
+        ▼
+eureka-server :8761  (todos se registran aquí con su nombre)
 ```
 
 | Microservicio | Puerto | Base de datos | Responsabilidad |
 |---|---|---|---|
+| **eureka-server** | 8761 | — | Registro de servicios (Spring Cloud Netflix Eureka). Panel en http://localhost:8761 |
+| **api-gateway** | 8080 | — | Puerta de entrada única (Spring Cloud Gateway). Reparte `/api/roles`, `/api/usuarios`, `/api/turnos` y `/api/registros` al microservicio que corresponde. |
 | **roles-ms** | 8081 | `roles_db` | Catálogo de roles (Administrador, Observador). |
 | **usuarios-ms** | 8082 | `usuarios_db` | Registro, login (BCrypt), perfil, foto, recuperar clave, anular y restaurar. |
 | **turnos-ms** | 8083 | `turnos_db` | Programar turnos, validar choques de horario, turno en curso (hora de Chile), anular y restaurar. |
@@ -59,7 +64,7 @@ App Android (Kotlin + Jetpack Compose, MVVM)
 
 ### Tecnologías
 - **App:** Kotlin, Jetpack Compose, Material 3, Navigation Compose, ViewModel + StateFlow, Retrofit + Gson, Coil (fotos), CameraX + ML Kit (escáner), SharedPreferences (sesión y tema).
-- **Backend:** Java 17, Spring Boot 4, Spring Data JPA, MySQL, Lombok, WebClient, BCrypt, springdoc-openapi (Swagger).
+- **Backend:** Java 17, Spring Boot 4, Spring Cloud (Eureka y Gateway), Spring Data JPA, MySQL, Lombok, WebClient, BCrypt, springdoc-openapi (Swagger).
 
 ---
 
@@ -71,7 +76,14 @@ App Android (Kotlin + Jetpack Compose, MVVM)
 - Android Studio.
 
 ### 2. Levantar los microservicios
-El código de los microservicios está en https://github.com/Jemerym/Back-appconteo. Clónalo y entra a la carpeta:
+El código de los microservicios está en https://github.com/Jemerym/Back-appconteo. Puedes obtenerlo de dos formas:
+
+**Opción A — Descargar ZIP (sin git):**
+1. Entra a https://github.com/Jemerym/Back-appconteo
+2. Botón verde **Code** → **Download ZIP**.
+3. Descomprime el archivo y abre la carpeta `Back-appconteo`.
+
+**Opción B — Clonar con git:**
 
 ```bash
 git clone https://github.com/Jemerym/Back-appconteo.git
@@ -83,7 +95,12 @@ cd Back-appconteo
 
 Las bases de datos se crean solas (`createDatabaseIfNotExist=true`) y las tablas también (`ddl-auto=update`).
 
-Levanta los 4 microservicios **en este orden**, porque usuarios-ms necesita a roles-ms y turnos-ms necesita a usuarios-ms. En cada carpeta, ejecuta su comando (en Windows usa `mvnw.cmd` en vez de `./mvnw`):
+Levanta todo **en este orden**: primero Eureka, luego los microservicios y al final el gateway. En cada carpeta, ejecuta su comando (en Windows usa `mvnw.cmd` en vez de `./mvnw`):
+
+**eureka-server** (primero):
+```bash
+./mvnw spring-boot:run
+```
 
 **roles-ms:**
 ```bash
@@ -105,20 +122,25 @@ Levanta los 4 microservicios **en este orden**, porque usuarios-ms necesita a ro
 ./mvnw spring-boot:run
 ```
 
-También puedes ejecutar la clase `*MsApplication` de cada microservicio desde IntelliJ.
+**api-gateway** (al final):
+```bash
+./mvnw spring-boot:run
+```
+
+Después de levantar todo, espera unos **30 segundos** antes de usar la app: Eureka tarda ese tiempo en avisar a cada servicio dónde están los demás.
+
+También puedes ejecutar la clase `*Application` de cada proyecto desde IntelliJ.
 
 Cada microservicio tiene su documentación en Swagger: `http://localhost:<puerto>/swagger-ui.html`.
 
 ### 3. Configurar la app
-En `data/remote/RetrofitClient.kt` pon la **IP del PC donde corren los microservicios**:
+La app llama solo al **API Gateway**. En `data/remote/RetrofitClient.kt` pon la **IP del PC donde corren los microservicios**, con el puerto 8080:
 ```kotlin
-private const val URL_USUARIOS  = "http://192.168.1.5:8082/"
-private const val URL_TURNOS    = "http://192.168.1.5:8083/"
-private const val URL_REGISTROS = "http://192.168.1.5:8084/"
+private const val URL_GATEWAY = "http://192.168.1.5:8080/"
 ```
 - **Emulador:** usa `10.0.2.2` en vez de la IP.
 - **Celular físico:** usa la IP del PC en la misma WiFi. Puedes verla con `ipconfig` en Windows.
-- **Firewall de Windows:** permite los puertos **8082, 8083 y 8084**. Si el login funciona pero los turnos no, casi siempre es el firewall.
+- **Firewall de Windows:** permite el puerto **8080** (el del gateway).
 
 ### 4. Usuarios de prueba
 usuarios-ms los crea solo la primera vez:
