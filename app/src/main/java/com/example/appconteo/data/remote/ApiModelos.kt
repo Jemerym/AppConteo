@@ -1,5 +1,6 @@
 package com.example.appconteo.data.remote
 
+import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 
@@ -91,5 +92,55 @@ fun TurnoResponse.aTurno() = Turno(
     horaInicio = horaInicio,
     horaFin = horaFin,
     fecha = fecha,
+    anulado = anulado == true
+)
+
+// ---------------- Registros (registros-service) ----------------
+
+data class RegistroAforoRequest(
+    val usuarioId: Long,
+    val observadorNombre: String,
+    val turnoId: Long?,
+    val acceso: Int,
+    val tipoRegistro: String,     // "Cliente" o "Tránsito"
+    val tipoGrupo: String,
+    val rangoEtario: String,
+    val codigoBoleta: String?     // solo clientes
+)
+
+data class ModificarRegistroAforoRequest(
+    val acceso: Int,
+    val tipoGrupo: String,
+    val rangoEtario: String
+)
+
+data class RegistroAforoResponse(
+    val id: Long,
+    val usuarioId: Long,
+    val observadorNombre: String,
+    val turnoId: Long?,
+    val acceso: Int,
+    val tipoRegistro: String,
+    val tipoGrupo: String,
+    val rangoEtario: String,
+    val codigoBoleta: String?,
+    val fecha: String,
+    val hora: String,
+    val anulado: Boolean?
+)
+
+// Convierte la respuesta de la API en el modelo que ya usan las pantallas (HistorialRegistros).
+fun RegistroAforoResponse.aHistorial() = HistorialRegistros(
+    id = id,
+    observadorNombre = observadorNombre,
+    tipoRegistro = tipoRegistro,
+    acceso = acceso,
+    idTurno = turnoId ?: 0L,
+    usuarioId = usuarioId,
+    tipoGrupo = tipoGrupo,
+    rangoEtario = rangoEtario,
+    codigoBoleta = codigoBoleta,
+    fecha = fecha,
+    hora = hora,
     anulado = anulado == true
 )

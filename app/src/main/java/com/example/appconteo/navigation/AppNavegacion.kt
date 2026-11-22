@@ -44,7 +44,7 @@ fun AppNavegacion(
     usuariosViewModel: UsuariosViewModel = viewModel(),
     conteoViewModel: ConteoViewModel = viewModel(),
     turnosViewModel: TurnosViewModel = viewModel(),
-    temaActual: TemaApp = TemaApp.SISTEMA,
+    temaActual: TemaApp = TemaApp.CLARO,
     onCambiarTema: (TemaApp) -> Unit = {}
 ) {
     val navController = rememberNavController()
@@ -64,6 +64,11 @@ fun AppNavegacion(
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
             usuariosViewModel.limpiarMensaje()
         }
+    }
+
+    // El conteo se recalcula cuando llega un registro nuevo (o se anula/restaura) desde registros-service
+    LaunchedEffect(historial) {
+        conteoViewModel.recargarConteo()
     }
 
     val mensajeTurnos by turnosViewModel.mensaje.collectAsStateWithLifecycle()
@@ -120,6 +125,10 @@ fun AppNavegacion(
         }
 
         composable(Ruta.Login.ruta) { backStackEntry ->
+            // Bandera que deja puesta Recuperar clave cuando termina bien
+            val limpiarCampos by backStackEntry.savedStateHandle
+                .getStateFlow("limpiar_login", false)
+                .collectAsStateWithLifecycle()
 
             LoginScreen(
                 onIniciarSesion = usuariosViewModel::iniciarSesion,
@@ -135,6 +144,8 @@ fun AppNavegacion(
                 onIrRecuperarClave = {
                     navController.navegarUnico(Ruta.RecuperarClave.ruta)
                 },
+                limpiarCampos = limpiarCampos,
+                onCamposLimpiados = { backStackEntry.savedStateHandle["limpiar_login"] = false }
             )
         }
 
@@ -153,6 +164,10 @@ fun AppNavegacion(
         composable(Ruta.Admin.ruta) {
             SoloAdmin(usuario = usuarioActual, onDenegado = { navController.popBackStack() }) { admin ->
                 val conteoState by conteoViewModel.uiState.collectAsStateWithLifecycle()
+
+                // Mientras el admin está en esta pantalla, pide los registros al servidor cada 15 s
+                ActualizarPeriodicamente { usuariosViewModel.refrescarHistorial() }
+
                 AdminScreen(
                     historial = historial,
                     usuarioActual = admin,
@@ -176,11 +191,9 @@ fun AppNavegacion(
         ) { backStackEntry ->
             val turnoId = backStackEntry.arguments?.getLong("turnoId") ?: 0L
             val usuarioId = backStackEntry.arguments?.getLong("usuarioId") ?: 0L
-
-            // El observador solo puede modificar/anular sus registros mientras su turno está en curso:
-            // se pregunta al servidor cada 15 s, así los botones aparecen/desaparecen solos.
+            ActualizarPeriodicamente { usuariosViewModel.refrescarHistorial() }
             if (usuarioActual?.esAdmin == false) {
-                    ActualizarPeriodicamente { turnosViewModel.actualizarTurnoActual() }
+                ActualizarPeriodicamente { turnosViewModel.actualizarTurnoActual() }
             }
 
             VerRegistrosScreen(
@@ -203,8 +216,7 @@ fun AppNavegacion(
             val codigoScanned = backStackEntry.savedStateHandle.get<String>("codigo_scanned")
             val conteoState by conteoViewModel.uiState.collectAsStateWithLifecycle()
 
-            // TIEMPO REAL: mientras el observador ve esta pantalla, pregunta al servidor cada 15 s
-            // cuál es su turno activo (con la hora del servidor). Se pausa sola al minimizar la app.
+
             ActualizarPeriodicamente { turnosViewModel.actualizarTurnoActual() }
 
             InicioUsuariosScreen(

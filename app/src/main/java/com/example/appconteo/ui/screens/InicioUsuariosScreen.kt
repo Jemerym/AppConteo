@@ -50,7 +50,8 @@ fun InicioUsuariosScreen(
     conteoState: ConteoUiState,
     turnoActualServidor: Turno? = null,   // cambia cuando el servidor informa otro turno activo
     onObtenerTurnoActual: (Long) -> Turno?,
-    onRegistrarEnHistorial: (String, String, Int, Long, Long, String, String, String?) -> Boolean,
+    // CAMBIO: el resultado llega después (cuando responde registros-service), por eso es un callback
+    onRegistrarEnHistorial: (String, String, Int, Long, Long, String, String, String?, (Boolean) -> Unit) -> Unit,
     onRecargarConteo: () -> Unit,
     onValidarBoleta: (String) -> Boolean,
     onIntentarEscanear: () -> Boolean,
@@ -96,10 +97,10 @@ fun InicioUsuariosScreen(
         accesoActual = accesoActual,
         codigoScannedTrigger = mostrarDialogoPorEscaneo,
         onDispararDialogoEscaneo = { mostrarDialogoPorEscaneo = false },
-        onRegistrarEnHistorial = { observador, tipo, tipoGrupo, rangoEtario ->
+        onRegistrarEnHistorial = { observador, tipo, tipoGrupo, rangoEtario, onResultado ->
             val esCliente = tipo == Clasificacion.CLIENTE.etiqueta
             val turnoAhora = onObtenerTurnoActual(usuario?.id ?: 0)
-            val guardado = onRegistrarEnHistorial(
+            onRegistrarEnHistorial(
                 observador,
                 tipo,
                 turnoAhora?.acceso ?: 1,
@@ -108,12 +109,13 @@ fun InicioUsuariosScreen(
                 tipoGrupo,
                 rangoEtario,
                 if (esCliente) codigoActual else null
-            )
-            if (guardado) {
-                codigoActual = null
-                onRecargarConteo()
+            ) { guardado ->
+                if (guardado) {
+                    codigoActual = null
+                    onRecargarConteo()
+                }
+                onResultado(guardado)
             }
-            guardado
         },
         onVerPerfil = onVerPerfil,
         onVerTurnos = onVerTurnos,
@@ -135,7 +137,7 @@ fun InicioUsuariosContent(
     accesoActual: Int = -1,
     codigoScannedTrigger: Boolean = false,
     onDispararDialogoEscaneo: () -> Unit = {},
-    onRegistrarEnHistorial: (observadorNombre: String, tipo: String, tipoGrupo: String, rangoEtario: String) -> Boolean,
+    onRegistrarEnHistorial: (observadorNombre: String, tipo: String, tipoGrupo: String, rangoEtario: String, onResultado: (Boolean) -> Unit) -> Unit,
     onVerPerfil: () -> Unit,
     onVerTurnos: () -> Unit,
     onVerRegistros: () -> Unit,
@@ -298,22 +300,24 @@ fun InicioUsuariosContent(
                         onDismiss = { mostrarDialogoAforo = false },
                         onGuardar = { tipoGrupo, rangoEdad ->
                             val tipoReg = if (esConBoleta) Clasificacion.CLIENTE.etiqueta else Clasificacion.TRANSITO.etiqueta
-                            val guardado = onRegistrarEnHistorial(nombreObservador, tipoReg, tipoGrupo, rangoEdad)
-                            if (guardado) {
-                                Toast.makeText(context, "¡Registro guardado con éxito!", Toast.LENGTH_SHORT).show()
-                                if (esConBoleta) {
-                                    mostrarDialogoAforo = false
-                                    onEscanearQr()
+                            onRegistrarEnHistorial(nombreObservador, tipoReg, tipoGrupo, rangoEdad) { guardado ->
+                                if (guardado) {
+                                    Toast.makeText(context, "¡Registro guardado con éxito!", Toast.LENGTH_SHORT).show()
+                                    if (esConBoleta) {
+                                        mostrarDialogoAforo = false
+                                        onEscanearQr()
+                                    }
                                 }
                             }
                         },
                         onGuardarYCerrar = { tipoGrupo, rangoEdad ->
                             val tipoReg = if (esConBoleta) Clasificacion.CLIENTE.etiqueta else Clasificacion.TRANSITO.etiqueta
-                            val guardado = onRegistrarEnHistorial(nombreObservador, tipoReg, tipoGrupo, rangoEdad)
-                            if (guardado) {
-                                Toast.makeText(context, "¡Registro guardado con éxito!", Toast.LENGTH_SHORT).show()
-                                mostrarDialogoAforo = false
-                                esConBoleta = false
+                            onRegistrarEnHistorial(nombreObservador, tipoReg, tipoGrupo, rangoEdad) { guardado ->
+                                if (guardado) {
+                                    Toast.makeText(context, "¡Registro guardado con éxito!", Toast.LENGTH_SHORT).show()
+                                    mostrarDialogoAforo = false
+                                    esConBoleta = false
+                                }
                             }
                         }
                     )
@@ -338,9 +342,9 @@ private fun InicioUsuariosDrawer(
             modifier = Modifier.padding(Dimens.espacioMedio)
         )
         HorizontalDivider()
-        NavigationDrawerItem(label = { Text(stringResource(R.string.menu_mi_perfil))  }, selected = false, onClick = onVerPerfil)
         NavigationDrawerItem(label = { Text("Mis Turnos") }, selected = false, onClick = onVerTurnos)
         NavigationDrawerItem(label = { Text("Ver Registros") }, selected = false, onClick = onVerRegistros)
+        NavigationDrawerItem(label = { Text(stringResource(R.string.menu_mi_perfil)) }, selected = false, onClick = onVerPerfil)
         NavigationDrawerItem(label = { Text(stringResource(R.string.menu_cerrar_sesion)) }, selected = false, onClick = onCerrarSesion)
     }
 }
@@ -397,7 +401,7 @@ private fun InicioUsuariosPreview() {
             usuario = Usuario(nombre = "Benjamin Curiñanco", correo = "benjamin@duocuc.cl"),
             historial = emptyList(),
             accesoActual = 2,
-            onRegistrarEnHistorial = { _, _, _, _ -> true },
+            onRegistrarEnHistorial = { _, _, _, _, _ -> },
             onVerPerfil = {},
             onVerTurnos = {},
             onVerRegistros = {},
