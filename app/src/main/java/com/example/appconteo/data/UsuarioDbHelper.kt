@@ -3,6 +3,7 @@ package com.example.appconteo.data
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
+import android.database.sqlite.SQLiteConstraintException
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.example.appconteo.model.Fechas
@@ -16,7 +17,7 @@ class UsuarioDbHelper(context: Context) :
 
     companion object {
         private const val NOMBRE_BD = "miregistro.db"
-        private const val VERSION_BD = 21
+        private const val VERSION_BD = 22   // 22: columna 'anulado' en historial_aforo
 
         private const val TABLA_ROLES = "roles"
         private const val ROL_ID = "id_rol"
@@ -44,6 +45,12 @@ class UsuarioDbHelper(context: Context) :
         private const val HIST_DETALLE = "detalle"
         private const val HIST_HORA = "hora"
         private const val HIST_FECHA = "fecha"
+        private const val HIST_ANULADO = "anulado"
+
+        // Una boleta solo puede estar en UN registro vigente; si ese registro se anula, se puede volver a escanear.
+        private const val SQL_INDICE_BOLETA =
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_codigo ON $TABLA_HISTORIAL($HIST_CODIGO) " +
+                    "WHERE $HIST_ANULADO = 0"
 
         private const val TABLA_TURNOS = "turnos"
         private const val TURNO_ID = "id_turno"
@@ -52,6 +59,7 @@ class UsuarioDbHelper(context: Context) :
         private const val TURNO_INICIO = "hora_inicio"
         private const val TURNO_FIN = "hora_fin"
         private const val TURNO_FECHA = "fecha"
+        private const val TURNO_ANULADO = "anulado"
 
         private const val SQL_CREAR_ROLES =
             "CREATE TABLE $TABLA_ROLES (" +
@@ -81,7 +89,8 @@ class UsuarioDbHelper(context: Context) :
                     "$HIST_CODIGO TEXT, " +
                     "$HIST_DETALLE TEXT NOT NULL, " +
                     "$HIST_FECHA TEXT NOT NULL, " +
-                    "$HIST_HORA TEXT NOT NULL)"
+                    "$HIST_HORA TEXT NOT NULL, " +
+                    "$HIST_ANULADO INTEGER NOT NULL DEFAULT 0)"
 
         private const val SQL_CREAR_TURNOS =
             "CREATE TABLE $TABLA_TURNOS (" +
@@ -91,6 +100,7 @@ class UsuarioDbHelper(context: Context) :
                     "$TURNO_INICIO TEXT NOT NULL, " +
                     "$TURNO_FIN TEXT NOT NULL, " +
                     "$TURNO_FECHA TEXT NOT NULL, " +
+                    "$TURNO_ANULADO INTEGER NOT NULL DEFAULT 0, " +
                     "FOREIGN KEY($TURNO_USUARIO) REFERENCES $TABLA_USUARIOS($USU_ID) ON DELETE CASCADE)"
 
         private const val SQL_PRECARGAR_ROLES =
@@ -120,11 +130,27 @@ class UsuarioDbHelper(context: Context) :
         db.execSQL(SQL_PRECARGAR_ROLES)
         db.execSQL(SQL_PRECARGAR_USUARIOS)
         db.execSQL(SQL_CREAR_HISTORIAL)
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_historial_codigo ON $TABLA_HISTORIAL($HIST_CODIGO)")
+        db.execSQL(SQL_INDICE_BOLETA)
         db.execSQL(SQL_CREAR_TURNOS)
     }
 
+    // CAMBIO: antes cada versión nueva BORRABA todas las tablas (se perdían los registros de conteo).
+    // Ahora se migra paso a paso conservando los datos. Solo versiones muy antiguas (< 21) se recrean.
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 21) {
+            recrearTodo(db)
+            return
+        }
+        if (oldVersion < 22) {
+            db.execSQL("ALTER TABLE $TABLA_HISTORIAL ADD COLUMN $HIST_ANULADO INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("DROP INDEX IF EXISTS idx_historial_codigo")
+            db.execSQL(SQL_INDICE_BOLETA)
+            db.execSQL("ALTER TABLE $TABLA_TURNOS ADD COLUMN $TURNO_ANULADO INTEGER NOT NULL DEFAULT 0")
+        }
+        // Próximas versiones: if (oldVersion < 23) { ... }
+    }
+
+    private fun recrearTodo(db: SQLiteDatabase) {
         db.execSQL("DROP TABLE IF EXISTS $TABLA_USUARIOS")
         db.execSQL("DROP TABLE IF EXISTS $TABLA_ROLES")
         db.execSQL("DROP TABLE IF EXISTS $TABLA_HISTORIAL")
@@ -182,7 +208,8 @@ class UsuarioDbHelper(context: Context) :
         rangoEtario = c.texto(HIST_RANGO),
         codigoBoleta = c.textoONulo(HIST_CODIGO),
         fecha = c.texto(HIST_FECHA),
-        hora = c.texto(HIST_HORA)
+        hora = c.texto(HIST_HORA),
+        anulado = c.entero(HIST_ANULADO) == 1
     )
 
     private fun leerTurno(c: Cursor) = Turno(
@@ -192,7 +219,8 @@ class UsuarioDbHelper(context: Context) :
         acceso = c.entero(TURNO_ACCESO),
         horaInicio = c.texto(TURNO_INICIO),
         horaFin = c.texto(TURNO_FIN),
-        fecha = c.texto(TURNO_FECHA)
+        fecha = c.texto(TURNO_FECHA),
+        anulado = c.entero(TURNO_ANULADO) == 1
     )
 
     // --- OPERACIONES DE USUARIOS ---
@@ -248,6 +276,7 @@ class UsuarioDbHelper(context: Context) :
                     put(TURNO_INICIO, t.horaInicio)
                     put(TURNO_FIN, t.horaFin)
                     put(TURNO_FECHA, t.fecha)
+                    put(TURNO_ANULADO, if (t.anulado) 1 else 0)
                 }
                 val filas = db.update(TABLA_TURNOS, valores, "$TURNO_ID = ?", arrayOf(t.id.toString()))
                 if (filas == 0) {
@@ -333,7 +362,7 @@ class UsuarioDbHelper(context: Context) :
 
     fun existeBoleta(codigo: String): Boolean =
         consultar(
-            "SELECT 1 FROM $TABLA_HISTORIAL WHERE $HIST_CODIGO = ? LIMIT 1",
+            "SELECT 1 FROM $TABLA_HISTORIAL WHERE $HIST_CODIGO = ? AND $HIST_ANULADO = 0 LIMIT 1",
             arrayOf(codigo.trim())
         ) { 1 }.isNotEmpty()
 
@@ -351,8 +380,24 @@ class UsuarioDbHelper(context: Context) :
         return writableDatabase.update(TABLA_HISTORIAL, valores, "$HIST_ID = ?", arrayOf(idHistorial.toString()))
     }
 
-    fun eliminarHistorial(idHistorial: Long): Int =
-        writableDatabase.delete(TABLA_HISTORIAL, "$HIST_ID = ?", arrayOf(idHistorial.toString()))
+    // CAMBIO: ya no se borra; se ANULA y se puede RESTAURAR (queda el registro de lo que pasó).
+    fun anularHistorial(idHistorial: Long): Int = marcarAnulado(idHistorial, true)
+
+    // Devuelve 0 si no se pudo: por ejemplo, su boleta ya se volvió a registrar en otro registro vigente.
+    fun restaurarHistorial(idHistorial: Long): Int = marcarAnulado(idHistorial, false)
+
+    private fun marcarAnulado(idHistorial: Long, anulado: Boolean): Int {
+        val valores = ContentValues().apply { put(HIST_ANULADO, if (anulado) 1 else 0) }
+        return try {
+            writableDatabase.update(TABLA_HISTORIAL, valores, "$HIST_ID = ?", arrayOf(idHistorial.toString()))
+        } catch (_: SQLiteConstraintException) {
+            0
+        }
+    }
+
+    fun buscarHistorialPorId(idHistorial: Long): HistorialRegistros? =
+        consultar("SELECT * FROM $TABLA_HISTORIAL WHERE $HIST_ID = ?", arrayOf(idHistorial.toString()), ::leerHistorial)
+            .firstOrNull()
 
 
 
@@ -394,6 +439,7 @@ class UsuarioDbHelper(context: Context) :
                    t.$TURNO_INICIO AS $TURNO_INICIO, 
                    t.$TURNO_FIN AS $TURNO_FIN, 
                    t.$TURNO_FECHA AS $TURNO_FECHA, 
+                   t.$TURNO_ANULADO AS $TURNO_ANULADO, 
                    COALESCE(u.$USU_NOMBRE, 'Desconocido') AS observador_nombre 
             FROM $TABLA_TURNOS t
             LEFT JOIN $TABLA_USUARIOS u ON t.$TURNO_USUARIO = u.$USU_ID
@@ -402,7 +448,9 @@ class UsuarioDbHelper(context: Context) :
         return consultar(sql, arrayOf(idTurno.toString()), ::leerTurno).firstOrNull()
     }
 
-    fun listarTurnos(): List<Turno> {
+    // COPIA LOCAL de los turnos que llegaron del servidor. Se usa cuando turnos-service no responde,
+    // para que el observador igual vea sus turnos (usuarioId = null -> todos, para el admin).
+    fun listarTurnos(usuarioId: Long? = null): List<Turno> {
         val sql = """
             SELECT t.$TURNO_ID AS $TURNO_ID, 
                    t.$TURNO_USUARIO AS $TURNO_USUARIO, 
@@ -410,12 +458,15 @@ class UsuarioDbHelper(context: Context) :
                    t.$TURNO_INICIO AS $TURNO_INICIO, 
                    t.$TURNO_FIN AS $TURNO_FIN, 
                    t.$TURNO_FECHA AS $TURNO_FECHA, 
+                   t.$TURNO_ANULADO AS $TURNO_ANULADO, 
                    COALESCE(u.$USU_NOMBRE, 'Desconocido') AS observador_nombre 
             FROM $TABLA_TURNOS t
             LEFT JOIN $TABLA_USUARIOS u ON t.$TURNO_USUARIO = u.$USU_ID
+            ${if (usuarioId == null) "" else "WHERE t.$TURNO_USUARIO = ?"}
             ORDER BY t.$TURNO_ID DESC
         """.trimIndent()
-        return consultar(sql, null, ::leerTurno)
+        val args = usuarioId?.let { arrayOf(it.toString()) }
+        return consultar(sql, args, ::leerTurno)
     }
 
 
@@ -428,10 +479,12 @@ class UsuarioDbHelper(context: Context) :
                    t.$TURNO_INICIO AS $TURNO_INICIO, 
                    t.$TURNO_FIN AS $TURNO_FIN, 
                    t.$TURNO_FECHA AS $TURNO_FECHA, 
+                   t.$TURNO_ANULADO AS $TURNO_ANULADO, 
                    COALESCE(u.$USU_NOMBRE, 'Desconocido') AS observador_nombre 
             FROM $TABLA_TURNOS t
             LEFT JOIN $TABLA_USUARIOS u ON t.$TURNO_USUARIO = u.$USU_ID
             WHERE t.$TURNO_USUARIO = ? AND t.$TURNO_FECHA = ? AND ? >= t.$TURNO_INICIO AND ? < t.$TURNO_FIN 
+              AND t.$TURNO_ANULADO = 0
             LIMIT 1
         """.trimIndent()
         return consultar(sql, arrayOf(idUsuario.toString(), fechaHoy, horaActual, horaActual), ::leerTurno).firstOrNull()

@@ -33,6 +33,7 @@ import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 import com.example.appconteo.permisos.Permisos
 import com.example.appconteo.ui.components.BotonPrincipal
+import com.example.appconteo.ui.components.BotonSecundario
 import com.example.appconteo.ui.components.FotoPerfil
 import com.example.appconteo.ui.components.TarjetaMetrica
 import com.example.appconteo.ui.components.TarjetaSeccion
@@ -155,7 +156,7 @@ fun InicioUsuariosContent(
         val hoy = Fechas.hoy()
         val idUsu = usuario?.id ?: -1L
         historial.count {
-            it.fecha == hoy &&
+            it.fecha == hoy && !it.anulado &&
                     it.tipoRegistro == Clasificacion.CLIENTE.etiqueta &&
                     it.usuarioId == idUsu
         }
@@ -257,6 +258,7 @@ fun InicioUsuariosContent(
                     titulo = "Boletas Escaneadas Hoy",
                     valor = "$boletasEscaneadas",
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    colorValor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -278,12 +280,12 @@ fun InicioUsuariosContent(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                BotonPrincipal(
+                BotonSecundario(
                     texto = "Registro Rápido",
                     onClick = {
                         if (!tieneTurnoActivo) {
                             Toast.makeText(context, "⚠️ No tienes un turno activo asignado para este horario.", Toast.LENGTH_LONG).show()
-                            return@BotonPrincipal
+                            return@BotonSecundario
                         }
                         esConBoleta = false
                         mostrarDialogoAforo = true
@@ -336,9 +338,9 @@ private fun InicioUsuariosDrawer(
             modifier = Modifier.padding(Dimens.espacioMedio)
         )
         HorizontalDivider()
+        NavigationDrawerItem(label = { Text(stringResource(R.string.menu_mi_perfil))  }, selected = false, onClick = onVerPerfil)
         NavigationDrawerItem(label = { Text("Mis Turnos") }, selected = false, onClick = onVerTurnos)
         NavigationDrawerItem(label = { Text("Ver Registros") }, selected = false, onClick = onVerRegistros)
-        NavigationDrawerItem(label = { Text(stringResource(R.string.menu_mi_perfil)) }, selected = false, onClick = onVerPerfil)
         NavigationDrawerItem(label = { Text(stringResource(R.string.menu_cerrar_sesion)) }, selected = false, onClick = onCerrarSesion)
     }
 }

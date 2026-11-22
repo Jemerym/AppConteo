@@ -1,4 +1,5 @@
 package com.example.appconteo.ui.style
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
@@ -14,7 +15,6 @@ import androidx.compose.ui.unit.dp
 import com.example.appconteo.ui.theme.Blanco
 import com.example.appconteo.ui.theme.Dimens
 import com.example.appconteo.ui.theme.GrisDeshabilitado
-import com.example.appconteo.ui.theme.Primario
 
 object EstilosBoton {
     val forma: Shape = RoundedCornerShape(Dimens.radioBoton)
@@ -22,8 +22,8 @@ object EstilosBoton {
 
     @Composable
     fun coloresPrincipal(): ButtonColors = ButtonDefaults.buttonColors(
-        containerColor = Primario,
-        contentColor = Blanco,
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
         disabledContainerColor = GrisDeshabilitado,
         disabledContentColor = Blanco
     )
@@ -32,6 +32,10 @@ object EstilosBoton {
     fun coloresSecundario(): ButtonColors = ButtonDefaults.outlinedButtonColors(
         contentColor = MaterialTheme.colorScheme.primary
     )
+
+    @Composable
+    fun bordePrincipal(): BorderStroke =
+        BorderStroke(1.5.dp, MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f))
 
     @Composable
     fun bordeSecundario(): BorderStroke =

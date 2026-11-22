@@ -37,12 +37,15 @@ import com.example.appconteo.viewmodel.ConteoViewModel
 import com.example.appconteo.ui.components.ActualizarPeriodicamente
 import com.example.appconteo.viewmodel.TurnosViewModel
 import com.example.appconteo.viewmodel.UsuariosViewModel
+import com.example.appconteo.ui.theme.TemaApp
 
 @Composable
 fun AppNavegacion(
     usuariosViewModel: UsuariosViewModel = viewModel(),
     conteoViewModel: ConteoViewModel = viewModel(),
-    turnosViewModel: TurnosViewModel = viewModel()
+    turnosViewModel: TurnosViewModel = viewModel(),
+    temaActual: TemaApp = TemaApp.SISTEMA,
+    onCambiarTema: (TemaApp) -> Unit = {}
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -74,6 +77,14 @@ fun AppNavegacion(
     // Cada vez que cambia el usuario (login, sesión restaurada, cierre de sesión) se cargan sus turnos
     LaunchedEffect(usuarioActual) {
         turnosViewModel.establecerUsuario(usuarioActual)
+
+        // Si la sesión se cerró desde el ViewModel (por ejemplo, el usuario fue anulado mientras
+        // estaba conectado) se vuelve al Login. Antes quedaba en una pantalla sin sesión.
+        val rutaActual = navController.currentDestination?.route
+        val rutasPublicas = setOf(Ruta.Login.ruta, Ruta.Registro.ruta, Ruta.RecuperarClave.ruta)
+        if (usuarioActual == null && rutaActual != null && rutaActual !in rutasPublicas) {
+            navController.cerrarSesionLimpiando()
+        }
     }
 
     val startDestination = remember {
@@ -109,10 +120,6 @@ fun AppNavegacion(
         }
 
         composable(Ruta.Login.ruta) { backStackEntry ->
-            // Bandera que deja puesta Recuperar clave cuando termina bien
-            val limpiarCampos by backStackEntry.savedStateHandle
-                .getStateFlow("limpiar_login", false)
-                .collectAsStateWithLifecycle()
 
             LoginScreen(
                 onIniciarSesion = usuariosViewModel::iniciarSesion,
@@ -128,8 +135,6 @@ fun AppNavegacion(
                 onIrRecuperarClave = {
                     navController.navegarUnico(Ruta.RecuperarClave.ruta)
                 },
-                limpiarCampos = limpiarCampos,
-                onCamposLimpiados = { backStackEntry.savedStateHandle["limpiar_login"] = false }
             )
         }
 
@@ -153,6 +158,7 @@ fun AppNavegacion(
                     usuarioActual = admin,
                     conteoState = conteoState,
                     onRecargarConteo = conteoViewModel::recargarConteo,
+                    onVerPerfil = { navController.navegarUnico(Ruta.Perfil.ruta) },
                     onVerUsuarios = { navController.navegarUnico(Ruta.Usuarios.ruta) },
                     onVerRegistros = { navController.navegarUnico(Ruta.VerRegistros.crear()) },
                     onVerTurnos = { navController.navegarUnico(Ruta.MisTurnos.ruta) },
@@ -170,14 +176,25 @@ fun AppNavegacion(
         ) { backStackEntry ->
             val turnoId = backStackEntry.arguments?.getLong("turnoId") ?: 0L
             val usuarioId = backStackEntry.arguments?.getLong("usuarioId") ?: 0L
+
+            // El observador solo puede modificar/anular sus registros mientras su turno está en curso:
+            // se pregunta al servidor cada 15 s, así los botones aparecen/desaparecen solos.
+            if (usuarioActual?.esAdmin == false) {
+                    ActualizarPeriodicamente { turnosViewModel.actualizarTurnoActual() }
+            }
+
             VerRegistrosScreen(
                 historial = historial,
                 usuarioActual = usuarioActual,
                 turnoIdFiltro = if (turnoId > 0L) turnoId else null,
                 usuarioIdFiltro = if (usuarioId > 0L) usuarioId else null,
                 tituloUsuario = if (usuarioId > 0L) usuarios.find { it.id == usuarioId }?.nombre else null,
-                onAnularRegistro = usuariosViewModel::eliminarHistorial,
-                onModificarRegistro = usuariosViewModel::actualizarHistorial,
+                onAnularRegistro = { id -> usuariosViewModel.anularHistorial(id, turnoActualServidor) },
+                onModificarRegistro = { id, acceso, grupo, edad ->
+                    usuariosViewModel.actualizarHistorial(id, acceso, grupo, edad, turnoActualServidor)
+                },
+                onRestaurarRegistro = { id -> usuariosViewModel.restaurarHistorial(id, turnoActualServidor) },
+                puedeEditar = { registro -> usuariosViewModel.puedeEditarRegistro(registro, turnoActualServidor) },
                 onVolver = { navController.popBackStack() }
             )
         }
@@ -219,7 +236,8 @@ fun AppNavegacion(
             MisTurnosScreen(
                 usuario = usuarioActual,
                 turnos = turnos,
-                onEliminarTurno = turnosViewModel::eliminar,
+                onAnularTurno = turnosViewModel::anular,
+                onRestaurarTurno = turnosViewModel::restaurar,
                 onRecargarTurnos = turnosViewModel::recargar,
                 onVerRegistrosTurno = { turnoId ->
                     navController.navegarUnico(Ruta.VerRegistros.crear(turnoId))
@@ -253,8 +271,11 @@ fun AppNavegacion(
                     filtro = filtro,
                     onBuscar = usuariosViewModel::buscar,
                     onVerRegistros = { id -> navController.navegarUnico(Ruta.VerRegistros.crear(usuarioId = id)) },
-                    onEliminarUsuario = usuariosViewModel::eliminar,
+                    onAnularUsuario = usuariosViewModel::anular,
+                    onRestaurarUsuario = usuariosViewModel::restaurar,
                     onVolver = {
+                        // Al salir se limpia el buscador (como limpiar() en Login)
+                        usuariosViewModel.limpiar()
                         if (navController.previousBackStackEntry != null) {
                             navController.popBackStack()
                         }
@@ -266,6 +287,8 @@ fun AppNavegacion(
         composable(Ruta.Perfil.ruta) {
             PerfilScreen(
                 usuariosViewModel = usuariosViewModel,
+                temaActual = temaActual,
+                onCambiarTema = onCambiarTema,
                 onModificarPerfil = {
                     navController.navegarUnico(Ruta.EditarPerfil.ruta)
                 },

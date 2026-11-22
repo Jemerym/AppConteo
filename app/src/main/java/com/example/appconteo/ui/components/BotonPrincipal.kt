@@ -1,6 +1,7 @@
 package com.example.appconteo.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +29,7 @@ fun BotonPrincipal(
     modifier: Modifier = Modifier,
     habilitado: Boolean = true,
     @DrawableRes icono: Int? = null,
+    borde: BorderStroke? = EstilosBoton.bordePrincipal(),
     colors: ButtonColors = EstilosBoton.coloresPrincipal()
 ) {
     Button(
@@ -36,6 +38,7 @@ fun BotonPrincipal(
         enabled = habilitado,
         shape = EstilosBoton.forma,
         colors = colors,
+        border = borde,
         elevation = EstilosBoton.elevacion(),
         contentPadding = EstilosBoton.relleno
     ) {
@@ -43,7 +46,7 @@ fun BotonPrincipal(
             Icon(
                 painter = painterResource(id = icono),
                 contentDescription = null,
-                modifier = Modifier.size(ButtonDefaults.IconSize)
+                modifier = Modifier.size(ButtonDefaults.IconSize),
             )
             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
         }

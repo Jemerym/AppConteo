@@ -8,6 +8,8 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,12 +34,15 @@ import com.example.appconteo.ui.components.FotoPerfil
 import com.example.appconteo.ui.components.TarjetaSeccion
 import com.example.appconteo.ui.theme.AppConteoTheme
 import com.example.appconteo.ui.theme.Dimens
+import com.example.appconteo.ui.theme.TemaApp
 import com.example.appconteo.viewmodel.UsuariosViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun PerfilScreen(
     usuariosViewModel: UsuariosViewModel = viewModel(),
+    temaActual: TemaApp = TemaApp.SISTEMA,
+    onCambiarTema: (TemaApp) -> Unit = {},
     onModificarPerfil: () -> Unit,
     onVolver: () -> Unit
 ) {
@@ -64,6 +69,8 @@ fun PerfilScreen(
                 }
             }
         },
+        temaActual = temaActual,
+        onCambiarTema = onCambiarTema,
         onModificarPerfil = onModificarPerfil,
         onVolver = onVolver
     )
@@ -75,6 +82,8 @@ fun PerfilContent(
     usuario: Usuario?,
     onFotoTomada: (Bitmap) -> Unit,
     onImagenElegida: (Uri) -> Unit,
+    temaActual: TemaApp = TemaApp.CLARO,
+    onCambiarTema: (TemaApp) -> Unit = {},
     onModificarPerfil: () -> Unit,
     onVolver: () -> Unit
 ) {
@@ -218,7 +227,7 @@ fun PerfilContent(
                     )
                 }
                 BotonPrincipal(
-                    texto = "Modificar Perfil",
+                    texto = "Cambiar contraseña/nombre",
                     onClick = onModificarPerfil,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -233,6 +242,62 @@ fun PerfilContent(
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.espacioChico)) {
                     FilaDetalle(etiqueta = "Correo:", valor = usuario?.correo ?: "-")
                     FilaDetalle(etiqueta = "Rol:", valor = usuario?.rolNombre ?: "Estudiante")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(Dimens.espacioMedio))
+
+            // Tema de la app: se aplica al instante en todas las pantallas y queda guardado.
+            TarjetaSeccion(
+                titulo = "Apariencia / Tema",
+                modifier = Modifier.padding(horizontal = Dimens.espacioPantalla)
+            ) {
+                SelectorTema(temaActual = temaActual, onCambiarTema = onCambiarTema)
+            }
+
+            Spacer(modifier = Modifier.height(Dimens.espacioGrande))
+        }
+    }
+}
+
+@Composable
+private fun SelectorTema(temaActual: TemaApp, onCambiarTema: (TemaApp) -> Unit) {
+    val opciones = TemaApp.entries
+
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.espacioChico)) {
+        opciones.chunked(3).forEach { fila ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.espacioChico)
+            ) {
+                fila.forEach { tema ->
+                    val seleccionado = tema == temaActual
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onCambiarTema(tema) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (seleccionado) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        border = if (seleccionado) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = tema.etiqueta,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Medium,
+                                color = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                repeat(3 - fila.size) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }

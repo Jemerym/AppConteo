@@ -16,7 +16,6 @@ import com.example.appconteo.ui.components.BotonPrincipal
 import com.example.appconteo.ui.components.BotonSecundario
 import com.example.appconteo.ui.style.EstilosBoton
 import com.example.appconteo.ui.style.estiloAltoBoton
-import com.example.appconteo.ui.theme.Blanco
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +100,7 @@ fun RegistroAforoDialog(
                             .estiloAltoBoton(),
                         shape = EstilosBoton.forma,
                         colors = ButtonDefaults.buttonColors(
-                            contentColor = Blanco
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         Text("Guardar y Seguir")
