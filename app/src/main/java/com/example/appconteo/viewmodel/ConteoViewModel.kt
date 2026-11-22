@@ -15,7 +15,8 @@ class ConteoViewModel(application: Application) : AndroidViewModel(application) 
     private val db = UsuarioDbHelper(application)
 
     private fun leerConteo(): ConteoUiState {
-        val historialHoy = db.listarHistorial().filter { it.fecha == Fechas.hoy() }
+        // Los registros anulados se conservan, pero no cuentan.
+        val historialHoy = db.listarHistorial().filter { it.fecha == Fechas.hoy() && !it.anulado }
         val clientes = historialHoy.count { it.tipoRegistro == Clasificacion.CLIENTE.etiqueta }
         return ConteoUiState(clientes = clientes, boletasEscaneadas = clientes, historial = historialHoy)
     }

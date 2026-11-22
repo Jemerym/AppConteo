@@ -17,11 +17,16 @@ class TurnosViewModel(application: Application) : AndroidViewModel(application) 
 
     private val repo = TurnoRepository()
 
+    // ESPEJO LOCAL TEMPORAL: el historial (aún en SQLite) tiene clave foránea a los turnos.
+    // Se elimina cuando exista registros-service.
     private val db = UsuarioDbHelper(application)
 
-
+    // Turnos para MOSTRAR en "Mis turnos". Se vuelven a pedir al servidor al entrar a la pantalla
+    // y periódicamente; nunca se usan para decidir cuál es el turno actual.
     private val _turnos = MutableStateFlow<List<Turno>>(emptyList())
     val turnos: StateFlow<List<Turno>> = _turnos.asStateFlow()
+
+    // Turno activo AHORA según el SERVIDOR (con la hora del servidor, no la del teléfono).
     private val _turnoActual = MutableStateFlow<Turno?>(null)
     val turnoActual: StateFlow<Turno?> = _turnoActual.asStateFlow()
 
@@ -31,6 +36,7 @@ class TurnosViewModel(application: Application) : AndroidViewModel(application) 
     private var usuario: Usuario? = null
     private val esAdmin: Boolean get() = usuario?.esAdmin == true
 
+    /** La navegación lo llama cuando cambia el usuario (login, sesión restaurada o cierre de sesión). */
     fun establecerUsuario(nuevo: Usuario?) {
         val cambioDeUsuario = usuario?.id != nuevo?.id
         usuario = nuevo
@@ -53,10 +59,13 @@ class TurnosViewModel(application: Application) : AndroidViewModel(application) 
 
     // ---------- carga desde el servidor ----------
 
+    /** Carga la lista y avisa con un Toast si falla (úsalo para acciones del usuario). */
     fun recargar() = cargarLista(silencioso = false)
 
+    /** Igual, pero sin Toast si falla: para el refresco automático cada pocos segundos. */
     fun refrescarEnSegundoPlano() = cargarLista(silencioso = true)
 
+    // El admin descarga todos los turnos; un observador solo los suyos.
     private fun cargarLista(silencioso: Boolean) {
         val u = usuario ?: return
         ejecutar(onError = { if (!silencioso) _mensaje.value = "❌ $it" }) {
@@ -66,6 +75,11 @@ class TurnosViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Pregunta al servidor cuál es el turno activo ahora (GET /api/turnos/actual).
+     * Usa la hora del servidor, así que no depende de la hora del dispositivo.
+     * Si no hay conexión conserva el último valor conocido.
+     */
     fun actualizarTurnoActual() {
         val u = usuario ?: return
         if (u.esAdmin) return   // el admin no cuenta personas
@@ -76,9 +90,12 @@ class TurnosViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    // Lo lee InicioUsuariosScreen de forma sincrónica (al mostrarse y al registrar a una persona),
+    // pero el dato lo decidió el servidor.
     fun obtenerTurnoActual(idUsuario: Long): Turno? =
         _turnoActual.value?.takeIf { it.usuarioId == idUsuario }
 
+    /** Trae UN turno directo del servidor (para editarlo con datos al día, no los de una lista vieja). */
     fun obtener(id: Long, onResultado: (Turno) -> Unit) {
         ejecutar {
             onResultado(repo.obtener(id))
@@ -87,6 +104,7 @@ class TurnosViewModel(application: Application) : AndroidViewModel(application) 
 
     // ---------- modificaciones (las valida el servidor) ----------
 
+    /** Crea el turno (turnoId = 0) o lo modifica (turnoId > 0). El servidor valida los conflictos. */
     fun guardar(
         turnoId: Long,
         usuarioId: Long,
@@ -112,17 +130,34 @@ class TurnosViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun eliminar(idTurno: Long) {
+    // CAMBIO: antes se eliminaba. Ahora se ANULA (se conserva, deja de ocupar el tramo) y se puede restaurar.
+    // El espejo local NO se toca: los registros hechos en ese turno lo siguen referenciando.
+    fun anular(idTurno: Long) {
         if (!esAdmin) {
             _mensaje.value = "⚠️ Acción no permitida"
             return
         }
         ejecutar {
-            repo.eliminar(idTurno)
-            db.eliminarTurno(idTurno)   // espejo local
-            _turnos.value = _turnos.value.filter { it.id != idTurno }
-            _mensaje.value = "✅ Turno eliminado con éxito"
+            val anulado = repo.anular(idTurno)
+            reemplazarEnLista(anulado)
+            _mensaje.value = "✅ Turno anulado"
         }
+    }
+
+    fun restaurar(idTurno: Long) {
+        if (!esAdmin) {
+            _mensaje.value = "⚠️ Acción no permitida"
+            return
+        }
+        ejecutar {
+            val restaurado = repo.restaurar(idTurno)   // 409 si el tramo ya lo ocupa otro turno
+            reemplazarEnLista(restaurado)
+            _mensaje.value = "✅ Turno restaurado"
+        }
+    }
+
+    private fun reemplazarEnLista(turno: Turno) {
+        _turnos.value = _turnos.value.map { if (it.id == turno.id) turno else it }
     }
 
     private fun ejecutar(
