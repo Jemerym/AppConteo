@@ -1,7 +1,6 @@
 package com.example.appconteo.data.remote
 
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -15,7 +14,10 @@ import retrofit2.http.Query
 interface UsuarioApi {
 
     @GET("api/usuarios")
-    suspend fun listar(@Query("buscar") buscar: String?): List<UsuarioResponse>
+    suspend fun listar(
+        @Query("buscar") buscar: String?,
+        @Query("incluirAnulados") incluirAnulados: Boolean = false
+    ): List<UsuarioResponse>
 
     @GET("api/usuarios/{id}")
     suspend fun obtener(@Path("id") id: Long): UsuarioResponse
@@ -36,6 +38,10 @@ interface UsuarioApi {
     @POST("api/usuarios/recuperar-clave")
     suspend fun recuperarClave(@Body datos: RecuperarClaveRequest)
 
-    @DELETE("api/usuarios/{id}")
-    suspend fun eliminar(@Path("id") id: Long)
+    // CAMBIO: ya no se elimina; se anula y se puede restaurar
+    @PUT("api/usuarios/{id}/anular")
+    suspend fun anular(@Path("id") id: Long): UsuarioResponse
+
+    @PUT("api/usuarios/{id}/restaurar")
+    suspend fun restaurar(@Path("id") id: Long): UsuarioResponse
 }

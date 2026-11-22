@@ -39,8 +39,9 @@ class UsuarioRepository(
         llamarApi { usuarioApi.obtener(id) }.aUsuario()
 
     // ifBlank { null }: sin texto no se envía ?buscar= y la API devuelve todos
-    suspend fun listar(buscar: String = ""): List<Usuario> =
-        llamarApi { usuarioApi.listar(buscar.ifBlank { null }) }.map { it.aUsuario() }
+    // incluirAnulados = true solo para la pantalla de administración de usuarios
+    suspend fun listar(buscar: String = "", incluirAnulados: Boolean = false): List<Usuario> =
+        llamarApi { usuarioApi.listar(buscar.ifBlank { null }, incluirAnulados) }.map { it.aUsuario() }
 
     suspend fun actualizar(usuario: Usuario): Usuario {
         val datos = ActualizarUsuarioRequest(
@@ -57,6 +58,9 @@ class UsuarioRepository(
     suspend fun recuperarClave(correo: String, palabraSecreta: String, nuevaClave: String) =
         llamarApi { usuarioApi.recuperarClave(RecuperarClaveRequest(correo, palabraSecreta, nuevaClave)) }
 
-    suspend fun eliminar(id: Long) =
-        llamarApi { usuarioApi.eliminar(id) }
+    suspend fun anular(id: Long): Usuario =
+        llamarApi { usuarioApi.anular(id) }.aUsuario()
+
+    suspend fun restaurar(id: Long): Usuario =
+        llamarApi { usuarioApi.restaurar(id) }.aUsuario()
 }

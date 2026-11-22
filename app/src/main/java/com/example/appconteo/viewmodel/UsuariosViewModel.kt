@@ -12,6 +12,7 @@ import com.example.appconteo.model.CambiosPerfil
 import com.example.appconteo.model.Fechas
 import com.example.appconteo.model.HistorialRegistros
 import com.example.appconteo.model.Rol
+import com.example.appconteo.model.Turno
 import com.example.appconteo.model.Usuario
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +25,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     // USUARIOS -> ahora vienen del microservicio usuarios-service (UsuarioRepository).
     private val repo = UsuarioRepository()
     private val avatarRepo = AvatarRepository()
-    private val turnoRepo = TurnoRepository()   // solo para limpiar turnos al eliminar un usuario
+    private val turnoRepo = TurnoRepository()   // solo para anular sus turnos al anular un usuario
 
     // SQLite se mantiene SOLO para turnos e historial (todavía no tienen microservicio)
     // y como "espejo" local de los usuarios (ver espejar()).
@@ -37,6 +38,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     private val _filtro = MutableStateFlow("")
     val filtro: StateFlow<String> = _filtro.asStateFlow()
 
+    // Incluye anulados: la pantalla decide si mostrarlos (chip "Mostrar anulados").
     private val _usuarios = MutableStateFlow<List<Usuario>>(emptyList())
     val usuarios: StateFlow<List<Usuario>> = _usuarios.asStateFlow()
 
@@ -111,7 +113,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     private fun cargarUsuarios() {
         if (!esAdministrador) return
         ejecutar {
-            val lista = repo.listar(_filtro.value.trim())
+            val lista = repo.listar(_filtro.value.trim(), incluirAnulados = true)
             espejar(lista)
             _usuarios.value = lista
         }
@@ -127,6 +129,12 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         ejecutar(onError = { if (it == "Usuario no encontrado") cerrarSesion() }) {
             val u = repo.obtener(idSesion)
             espejar(listOf(u))
+            if (!u.activo) {
+                // Lo anularon mientras tenía la sesión abierta: se cierra (la navegación vuelve al Login).
+                _mensaje.value = "⚠️ Tu usuario fue anulado. Contacta al administrador."
+                cerrarSesion()
+                return@ejecutar
+            }
             _usuarioActual.value = u
         }
     }
@@ -138,6 +146,12 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     fun buscar(texto: String) {
         _filtro.value = texto
         cargarUsuarios()
+    }
+
+    // Deja la pantalla Usuarios como nueva: buscador vacío y lista completa (igual que limpiar() de LoginViewModel).
+    // Se llama al salir de ListaUsuarios, así el texto buscado no queda filtrando la lista en Programar.
+    fun limpiar() {
+        buscar("")
     }
 
     // Usado por ProgramarScreen (modo edición). Busca primero en la lista ya descargada.
@@ -219,23 +233,38 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun eliminar(usuario: Usuario) {
+    // CAMBIO: antes se eliminaba. Ahora se ANULA: el usuario no puede entrar, pero se conserva
+    // (con su historial) y el administrador lo puede restaurar.
+    fun anular(usuario: Usuario) {
         if (!esAdministrador) {
             _mensaje.value = "⚠️ Acción no permitida"
             return
         }
         ejecutar {
-            repo.eliminar(usuario.id)
-            // Sus turnos viven en otro servicio: se limpian aparte (antes lo hacía el ON DELETE CASCADE).
+            repo.anular(usuario.id)
+            // Sus turnos viven en otro servicio: se anulan aparte. Al restaurar al usuario NO se restauran
+            // solos (el admin decide cuáles reactivar), porque el tramo pudo asignarse a otra persona.
+            var avisoTurnos = ""
             try {
-                turnoRepo.eliminarDeUsuario(usuario.id)
+                turnoRepo.anularDeUsuario(usuario.id)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                // Si turnos-service no responde, el usuario ya se eliminó; sus turnos quedan huérfanos.
+                avisoTurnos = " (no se pudieron anular sus turnos: ${e.message})"
             }
-            db.eliminarUsuario(usuario.id)   // espejo local
-            _mensaje.value = "✅ Usuario '${usuario.nombre}' eliminado"
+            _mensaje.value = "✅ Usuario '${usuario.nombre}' anulado$avisoTurnos"
             if (_usuarioActual.value?.id == usuario.id) cerrarSesion() else recargar()
+        }
+    }
+
+    fun restaurar(usuario: Usuario) {
+        if (!esAdministrador) {
+            _mensaje.value = "⚠️ Acción no permitida"
+            return
+        }
+        ejecutar {
+            repo.restaurar(usuario.id)
+            _mensaje.value = "✅ Usuario '${usuario.nombre}' restaurado"
+            recargar()
         }
     }
 
@@ -268,24 +297,65 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         return true
     }
 
-    fun actualizarHistorial(idHistorial: Long, acceso: Int, tipoGrupo: String, rangoEtario: String) {
-        if (!esAdministrador) {
-            _mensaje.value = "⚠️ Acción no permitida"
+    /**
+     * Quién puede modificar, anular o restaurar un registro:
+     *  - el administrador, siempre;
+     *  - el observador, solo SUS registros y solo mientras el turno en que los hizo sigue en curso
+     *    (turnoActual = turno activo según el servidor, TurnosViewModel.turnoActual).
+     * La pantalla usa esta misma función para mostrar u ocultar los botones.
+     */
+    fun puedeEditarRegistro(registro: HistorialRegistros, turnoActual: Turno?): Boolean {
+        val yo = _usuarioActual.value ?: return false
+        if (yo.esAdmin) return true
+        return registro.usuarioId == yo.id &&
+                turnoActual != null &&
+                !turnoActual.anulado &&
+                turnoActual.usuarioId == yo.id &&
+                registro.idTurno == turnoActual.id
+    }
+
+    private fun registroEditable(idHistorial: Long, turnoActual: Turno?): HistorialRegistros? {
+        val registro = db.buscarHistorialPorId(idHistorial)
+        if (registro == null || !puedeEditarRegistro(registro, turnoActual)) {
+            _mensaje.value = "⚠️ Solo puedes modificar tus registros mientras tu turno está en curso"
+            return null
+        }
+        return registro
+    }
+
+    fun actualizarHistorial(
+        idHistorial: Long,
+        acceso: Int,
+        tipoGrupo: String,
+        rangoEtario: String,
+        turnoActual: Turno?
+    ) {
+        val registro = registroEditable(idHistorial, turnoActual) ?: return
+        if (registro.anulado) {
+            _mensaje.value = "⚠️ El registro está anulado: restáuralo antes de modificarlo"
             return
         }
-        db.actualizarHistorial(idHistorial, acceso, tipoGrupo, rangoEtario)
+        // El observador no cambia la puerta: el registro queda en el acceso de su turno.
+        val accesoFinal = if (esAdministrador) acceso else registro.acceso
+        db.actualizarHistorial(idHistorial, accesoFinal, tipoGrupo, rangoEtario)
         _historial.value = db.listarHistorial()
         _mensaje.value = "✅ Registro actualizado"
     }
 
-    fun eliminarHistorial(idHistorial: Long) {
-        if (!esAdministrador) {
-            _mensaje.value = "⚠️ Acción no permitida"
-            return
-        }
-        db.eliminarHistorial(idHistorial)
+    // CAMBIO: antes se borraba el registro. Ahora se ANULA (deja de contar) y se puede restaurar.
+    fun anularHistorial(idHistorial: Long, turnoActual: Turno?) {
+        registroEditable(idHistorial, turnoActual) ?: return
+        db.anularHistorial(idHistorial)
         _historial.value = db.listarHistorial()
-        _mensaje.value = "✅ Registro eliminado"
+        _mensaje.value = "✅ Registro anulado"
+    }
+
+    fun restaurarHistorial(idHistorial: Long, turnoActual: Turno?) {
+        registroEditable(idHistorial, turnoActual) ?: return
+        val filas = db.restaurarHistorial(idHistorial)
+        _historial.value = db.listarHistorial()
+        _mensaje.value = if (filas > 0) "✅ Registro restaurado"
+        else "⚠️ No se pudo restaurar: su boleta ya está en otro registro vigente"
     }
 
     override fun onCleared() {
