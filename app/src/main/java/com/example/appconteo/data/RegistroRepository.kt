@@ -7,8 +7,6 @@ import com.example.appconteo.data.remote.RetrofitClient
 import com.example.appconteo.data.remote.aHistorial
 import com.example.appconteo.model.HistorialRegistros
 
-// Único lugar que sabe de dónde vienen los registros:
-//   Pantalla -> ViewModel -> RegistroRepository -> Retrofit -> registros-service -> MySQL
 class RegistroRepository(
     private val api: RegistroApi = RetrofitClient.registroApi
 ) {

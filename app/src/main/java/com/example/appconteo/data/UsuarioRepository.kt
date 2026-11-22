@@ -10,13 +10,6 @@ import com.example.appconteo.data.remote.UsuarioApi
 import com.example.appconteo.data.remote.aUsuario
 import com.example.appconteo.model.Usuario
 
-// Patrón Repository: el ÚNICO lugar que sabe DE DÓNDE vienen los datos de usuarios.
-//
-//   Pantalla -> ViewModel -> UsuarioRepository -> Retrofit -> usuarios-service -> MySQL
-//
-// Cada función es suspend porque espera la respuesta de la red.
-// Si algo falla, lanza Exception con un mensaje listo para mostrar al usuario.
-
 class UsuarioRepository(
     private val usuarioApi: UsuarioApi = RetrofitClient.usuarioApi
 ) {
@@ -38,8 +31,6 @@ class UsuarioRepository(
     suspend fun obtener(id: Long): Usuario =
         llamarApi { usuarioApi.obtener(id) }.aUsuario()
 
-    // ifBlank { null }: sin texto no se envía ?buscar= y la API devuelve todos
-    // incluirAnulados = true solo para la pantalla de administración de usuarios
     suspend fun listar(buscar: String = "", incluirAnulados: Boolean = false): List<Usuario> =
         llamarApi { usuarioApi.listar(buscar.ifBlank { null }, incluirAnulados) }.map { it.aUsuario() }
 

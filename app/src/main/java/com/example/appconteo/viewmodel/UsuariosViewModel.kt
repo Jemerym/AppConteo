@@ -22,13 +22,10 @@ import kotlinx.coroutines.launch
 
 class UsuariosViewModel(application: Application) : AndroidViewModel(application) {
 
-    // USUARIOS -> ahora vienen del microservicio usuarios-service (UsuarioRepository).
     private val repo = UsuarioRepository()
     private val avatarRepo = AvatarRepository()
-    private val turnoRepo = TurnoRepository()   // solo para anular sus turnos al anular un usuario
-    private val registroRepo = RegistroRepository()   // REGISTROS -> ahora vienen de registros-service
-
-    // La sesión (quién está conectado) se guarda en el teléfono con SharedPreferences.
+    private val turnoRepo = TurnoRepository()
+    private val registroRepo = RegistroRepository()
     private val sesion = SesionPreferencias(application)
 
     private val _mensaje = MutableStateFlow<String?>(null)
@@ -37,7 +34,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     private val _filtro = MutableStateFlow("")
     val filtro: StateFlow<String> = _filtro.asStateFlow()
 
-    // Incluye anulados: la pantalla decide si mostrarlos (chip "Mostrar anulados").
     private val _usuarios = MutableStateFlow<List<Usuario>>(emptyList())
     val usuarios: StateFlow<List<Usuario>> = _usuarios.asStateFlow()
 
@@ -50,21 +46,15 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     val esAdministrador: Boolean
         get() = _usuarioActual.value?.rolId == Rol.ID_ADMINISTRADOR
 
-    // Evita enviar dos veces la misma acción si el usuario toca el botón repetido.
     private var accionEnCurso = false
 
     init {
-        // El usuario de la sesión se lee de SesionPreferencias para decidir la pantalla inicial al instante;
-        // luego se refresca desde el servidor.
         val idSesion = sesion.leer()
         _usuarioActual.value = sesion.leerUsuario()
         recargar()
         if (idSesion != -1L) recargarUsuarioActual()
     }
 
-    // ---------- helpers de red ----------
-
-    /** Lanza una llamada de red en segundo plano. Si falla, avisa con onError (por defecto, un Toast). */
     private fun ejecutar(
         onError: (String) -> Unit = { _mensaje.value = "❌ $it" },
         bloque: suspend () -> Unit
@@ -80,7 +70,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /** Igual que ejecutar, pero ignora un segundo toque mientras la acción anterior sigue en curso. */
     private fun accion(onError: (String) -> Unit, bloque: suspend () -> Unit) {
         if (accionEnCurso) return
         accionEnCurso = true
@@ -93,14 +82,11 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // ---------- carga de datos ----------
-
     fun recargar() {
         cargarHistorial()
         cargarUsuarios()
     }
 
-    // Solo el administrador necesita la lista completa de usuarios.
     private fun cargarUsuarios() {
         if (!esAdministrador) return
         ejecutar {
@@ -115,17 +101,15 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
             _usuarioActual.value = null
             return
         }
-        // En silencio: si no hay red se conserva el usuario que ya está en pantalla.
         ejecutar(onError = { if (it == "Usuario no encontrado") cerrarSesion() }) {
             val u = repo.obtener(idSesion)
             if (!u.activo) {
-                // Lo anularon mientras tenía la sesión abierta: se cierra (la navegación vuelve al Login).
                 _mensaje.value = "⚠️ Tu usuario fue anulado. Contacta al administrador."
                 cerrarSesion()
                 return@ejecutar
             }
             _usuarioActual.value = u
-            sesion.guardar(u)   // mantiene al día nombre y rol guardados
+            sesion.guardar(u)
         }
     }
 
@@ -138,16 +122,11 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         cargarUsuarios()
     }
 
-    // Deja la pantalla Usuarios como nueva: buscador vacío y lista completa (igual que limpiar() de LoginViewModel).
-    // Se llama al salir de ListaUsuarios, así el texto buscado no queda filtrando la lista en Programar.
     fun limpiar() {
         buscar("")
     }
 
-    // Usado por ProgramarScreen (modo edición). Busca en la lista ya descargada.
     fun buscarPorId(id: Long): Usuario? = _usuarios.value.find { it.id == id }
-
-    // ---------- sesión y cuenta ----------
 
     fun iniciarSesion(correo: String, contrasena: String, onExito: () -> Unit, onError: (String) -> Unit) {
         accion(onError) {
@@ -194,7 +173,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         onError: (String) -> Unit
     ) {
         accion(onError) {
-            // 1) El servidor confirma que la contraseña actual es correcta.
             try {
                 repo.iniciarSesion(original.correo, cambios.contrasenaActual)
             } catch (e: Exception) {
@@ -202,9 +180,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
                 val sinRed = e.message?.startsWith("No se pudo conectar") == true
                 throw if (sinRed) e else Exception("Contraseña actual incorrecta")
             }
-            // 2) Nombre.
             val actualizado = repo.actualizar(original.copy(nombre = cambios.nombre))
-            // 3) Contraseña nueva (opcional).
             cambios.nuevaContrasena?.takeIf { it.isNotBlank() }?.let { nueva ->
                 repo.cambiarContrasena(original.id, cambios.contrasenaActual, nueva)
             }
@@ -222,8 +198,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // CAMBIO: antes se eliminaba. Ahora se ANULA: el usuario no puede entrar, pero se conserva
-    // (con su historial) y el administrador lo puede restaurar.
     fun anular(usuario: Usuario) {
         if (!esAdministrador) {
             _mensaje.value = "⚠️ Acción no permitida"
@@ -231,8 +205,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
         ejecutar {
             repo.anular(usuario.id)
-            // Sus turnos viven en otro servicio: se anulan aparte. Al restaurar al usuario NO se restauran
-            // solos (el admin decide cuáles reactivar), porque el tramo pudo asignarse a otra persona.
             var avisoTurnos = ""
             try {
                 turnoRepo.anularDeUsuario(usuario.id)
@@ -257,10 +229,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // ---------- HISTORIAL (ahora en registros-service) ----------
-
-    // El admin ve todos los registros; el observador solo los suyos. Se traen también los anulados
-    // porque Ver Registros tiene el filtro "Mostrar anulados".
     private fun cargarHistorial() {
         val u = _usuarioActual.value ?: return
         ejecutar {
@@ -271,7 +239,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // Para el refresco automático cada 15 s: igual que cargarHistorial(), pero sin Toast si falla.
     fun refrescarHistorial() {
         val u = _usuarioActual.value ?: return
         ejecutar(onError = { }) {
@@ -282,8 +249,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // CAMBIO: antes devolvía Boolean al instante (SQLite). Ahora el servidor tarda en responder,
-    // así que avisa con onResultado(true/false). La fecha y la hora las pone el servidor.
     fun registrarEnHistorial(
         observadorNombre: String,
         tipo: String,
@@ -306,7 +271,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
             codigoBoleta = codigoBoleta
         )
         ejecutar(onError = { error ->
-            _mensaje.value = "❌ $error"        // ej: "Esta boleta ya fue registrada"
+            _mensaje.value = "❌ $error"
             onResultado(false)
         }) {
             val nuevo = registroRepo.crear(datos)
@@ -315,13 +280,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /**
-     * Quién puede modificar, anular o restaurar un registro:
-     *  - el administrador, siempre;
-     *  - el observador, solo SUS registros y solo mientras el turno en que los hizo sigue en curso
-     *    (turnoActual = turno activo según el servidor, TurnosViewModel.turnoActual).
-     * La pantalla usa esta misma función para mostrar u ocultar los botones.
-     */
     fun puedeEditarRegistro(registro: HistorialRegistros, turnoActual: Turno?): Boolean {
         val yo = _usuarioActual.value ?: return false
         if (yo.esAdmin) return true
@@ -353,7 +311,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
             _mensaje.value = "⚠️ El registro está anulado: restáuralo antes de modificarlo"
             return
         }
-        // El observador no cambia la puerta: el registro queda en el acceso de su turno.
         val accesoFinal = if (esAdministrador) acceso else registro.acceso
         ejecutar {
             registroRepo.modificar(idHistorial, accesoFinal, tipoGrupo, rangoEtario)
@@ -362,7 +319,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // CAMBIO: antes se borraba el registro. Ahora se ANULA (deja de contar) y se puede restaurar.
     fun anularHistorial(idHistorial: Long, turnoActual: Turno?) {
         registroEditable(idHistorial, turnoActual) ?: return
         ejecutar {
@@ -374,7 +330,6 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
 
     fun restaurarHistorial(idHistorial: Long, turnoActual: Turno?) {
         registroEditable(idHistorial, turnoActual) ?: return
-        // Si su boleta ya está en otro registro vigente, el servidor responde 409 con ese mensaje.
         ejecutar {
             registroRepo.restaurar(idHistorial)
             cargarHistorial()

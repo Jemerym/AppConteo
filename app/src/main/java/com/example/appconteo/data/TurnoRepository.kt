@@ -6,8 +6,6 @@ import com.example.appconteo.data.remote.TurnoRequest
 import com.example.appconteo.data.remote.aTurno
 import com.example.appconteo.model.Turno
 
-// Único lugar que sabe de dónde vienen los turnos:
-//   Pantalla -> ViewModel -> TurnoRepository -> Retrofit -> turnos-service -> MySQL
 class TurnoRepository(
     private val api: TurnoApi = RetrofitClient.turnoApi
 ) {
@@ -18,7 +16,6 @@ class TurnoRepository(
     suspend fun obtener(id: Long): Turno =
         llamarApi { api.obtener(id) }.aTurno()
 
-    // Turno activo ahora (hora del servidor). null si el observador no tiene turno en este momento.
     suspend fun obtenerActual(usuarioId: Long): Turno? {
         val respuesta = llamarApi { api.actual(usuarioId) }
         if (!respuesta.isSuccessful) throw Exception("Error del servidor (${respuesta.code()})")
