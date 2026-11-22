@@ -44,6 +44,8 @@ fun RegistroScreen(
         onNombreCambia = viewModel::onNombreCambia,
         onCorreoCambia = viewModel::onCorreoCambia,
         onContrasenaCambia = viewModel::onContrasenaCambia,
+        onRepetirCambia = viewModel::onRepetirCambia,
+        onAlternarRepetir = viewModel::onAlternarRepetir,
         onPalabraSecretaCambia = viewModel::onPalabraSecretaCambia,
         onAlternarVisibilidad = viewModel::onAlternarVisibilidad,
         onTerminosCambia = viewModel::onTerminosCambia,
@@ -75,6 +77,8 @@ fun RegistroContent(
     onRegistrar: () -> Unit,
     onLimpiar: () -> Unit,
     onIrLogin: () -> Unit,
+    onRepetirCambia: (String) -> Unit = {},
+    onAlternarRepetir: () -> Unit = {},
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     Scaffold(
@@ -134,6 +138,15 @@ fun RegistroContent(
                     // Indicadores dinámicos de requisitos de contraseña en tiempo real
                     AnimatedVisibility(visible = uiState.contrasena.isNotEmpty()) {
                         IndicadoresContrasena(contrasena = uiState.contrasena)                    }
+
+                    CampoContrasena(
+                        valor = uiState.repetirContrasena,
+                        onValorCambia = onRepetirCambia,
+                        etiqueta = "Repetir contraseña",
+                        visible = uiState.repetirVisible,
+                        onAlternarVisible = onAlternarRepetir,
+                        error = uiState.errorRepetir
+                    )
 
                     CampoTexto(
                         valor = uiState.palabraSecreta,

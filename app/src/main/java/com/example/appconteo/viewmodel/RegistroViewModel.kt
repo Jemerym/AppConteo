@@ -28,6 +28,14 @@ class RegistroViewModel : ViewModel() {
         _uiState.update { it.copy(contrasena = contrasena, errorContrasena = null) }
     }
 
+    fun onRepetirCambia(valor: String) {
+        _uiState.update { it.copy(repetirContrasena = valor, errorRepetir = null) }
+    }
+
+    fun onAlternarRepetir() {
+        _uiState.update { it.copy(repetirVisible = !it.repetirVisible) }
+    }
+
     fun onPalabraSecretaCambia(palabra: String) {
         _uiState.update { it.copy(palabraSecreta = palabra, errorPalabraSecreta = null) }
     }
@@ -58,6 +66,7 @@ class RegistroViewModel : ViewModel() {
         var errNombre: String? = null
         var errCorreo: String? = null
         var errContrasena: String? = null
+        var errRepetir: String? = null
         var errPalabra: String? = null
         var errTerminos: String? = null
 
@@ -77,6 +86,14 @@ class RegistroViewModel : ViewModel() {
             valido = false
         }
 
+        if (estado.repetirContrasena.isEmpty()) {
+            errRepetir = "Repite la contraseña"
+            valido = false
+        } else if (estado.repetirContrasena != estado.contrasena) {
+            errRepetir = "Las contraseñas no coinciden"
+            valido = false
+        }
+
         if (estado.palabraSecreta.trim().isEmpty()) {
             errPalabra = "La palabra secreta es obligatoria"
             valido = false
@@ -93,6 +110,7 @@ class RegistroViewModel : ViewModel() {
                     errorNombre = errNombre,
                     errorCorreo = errCorreo,
                     errorContrasena = errContrasena,
+                    errorRepetir = errRepetir,
                     errorPalabraSecreta = errPalabra,
                     errorTerminos = errTerminos
                 )
